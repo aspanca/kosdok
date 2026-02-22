@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="61px" height="65px" viewBox="0 0 61 65" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>hospital</title>
+    <g id="Design" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="1.Home" transform="translate(-445.000000, -771.000000)" fill-rule="nonzero">
+            <g id="Group-11" transform="translate(368.000000, 724.000000)">
+                <g id="hospital" transform="translate(77.000000, 47.000000)">
+                    <rect id="Rectangle" fill="#A6D5FA" x="0" y="25" width="16" height="40"></rect>
+                    <rect id="Rectangle" fill="#4793FF" x="16" y="0" width="29" height="65"></rect>
+                    <rect id="Rectangle" fill="#B7E5FF" x="23" y="43" width="16" height="22"></rect>
+                    <rect id="Rectangle" fill="#4DAAF5" x="30" y="43" width="1" height="22"></rect>
+                    <rect id="Rectangle" fill="#A6D5FA" x="45" y="25" width="16" height="40"></rect>
+                    <g id="Group" transform="translate(50.000000, 29.000000)" fill="#4DAAF5">
+                        <rect id="Rectangle" x="0.00894444444" y="0.0667096774" width="6.86596296" height="4.55612903"></rect>
+                        <rect id="Rectangle" x="0.00894444444" y="9.17909677" width="6.86596296" height="4.55612903"></rect>
+                        <rect id="Rectangle" x="0.00894444444" y="18.2914839" width="6.86596296" height="4.55612903"></rect>
+                        <rect id="Rectangle" x="0.00894444444" y="27.4037419" width="6.86596296" height="4.55612903"></rect>
+                    </g>
+                    <polygon id="Path" fill="#B7E5FF" points="34.3333753 5 27.6666247 5 27.6666247 11.6667086 21 11.6667086 21 18.3332914 27.6666247 18.3332914 27.6666247 25 34.3333753 25 34.3333753 18.3332914 41 18.3332914 41 11.6667086 34.3333753 11.6667086"></polygon>
+                    <g id="Group" transform="translate(4.000000, 29.000000)" fill="#4DAAF5">
+                        <rect id="Rectangle" x="0.125222222" y="0.0667096774" width="6.86596296" height="4.55612903"></rect>
+                        <rect id="Rectangle" x="0.125222222" y="9.17909677" width="6.86596296" height="4.55612903"></rect>
+                        <rect id="Rectangle" x="0.125222222" y="18.2914839" width="6.86596296" height="4.55612903"></rect>
+                        <rect id="Rectangle" x="0.125222222" y="27.4037419" width="6.86596296" height="4.55612903"></rect>
+                    </g>
+                    <g id="Group" transform="translate(26.000000, 52.000000)" fill="#A6D5FA">
+                        <path d="M0.0915306122,13 L4.19011224,13 L4.19011224,9.72091089 C2.87618367,10.8718614 1.50959184,11.9648911 0.0915306122,13 Z" id="Path"></path>
+                        <path d="M5.36104082,8.64937624 L5.36104082,13 L12.9725408,13 L12.9725408,0.0471089109 C10.7358776,3.15230693 8.18668367,6.03380198 5.36104082,8.64937624 Z" id="Path"></path>
+                    </g>
+                    <path d="M30.5,61.4983285 C30.3330313,61.6602172 30.1690077,61.825301 30,61.985178 L30,65 L31,65 L31,61 C30.8330313,61.1661489 30.6690077,61.3343096 30.5,61.4983285 Z" id="Path" fill="#2195F2"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

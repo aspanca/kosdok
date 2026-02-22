@@ -1,0 +1,13 @@
+[build]
+  command = "yarn build"
+  publish = "dist"
+
+# Handle client-side routing (SPA)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Environment variables (optional, set in Netlify dashboard)
+[build.environment]
+  NODE_VERSION = "20"

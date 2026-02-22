@@ -1,0 +1,38 @@
+# Dependencies
+client/node_modules/
+
+# Build output
+client/dist/
+client/build/
+client/.next/
+client/out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Coverage
+client/coverage/
+
+# Misc
+*.tgz
+client/.cache/

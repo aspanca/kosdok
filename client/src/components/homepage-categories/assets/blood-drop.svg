@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="45px" height="64px" viewBox="0 0 45 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>blood-drop</title>
+    <g id="Design" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="1.Home" transform="translate(-1421.000000, -784.000000)" fill-rule="nonzero">
+            <g id="Group-7" transform="translate(1336.000000, 736.000000)">
+                <g id="blood-drop" transform="translate(85.000000, 48.000000)">
+                    <path d="M22.5,0 C10.536136,14.7478261 0,25.6 0,40.8114087 C0,60.1043478 14.7752336,64 22.5,64 C30.2247664,64 45,60.1043478 45,40.8114087 C45,25.6 34.463864,14.7478261 22.5,0 Z" id="Path" fill="#FF4945"></path>
+                    <ellipse id="Oval" fill="#FFFFFF" cx="23" cy="43.5" rx="13" ry="12.5"></ellipse>
+                    <polygon id="Path" fill="#FF4945" points="30 40.2 25.8 40.2 25.8 36 20.2 36 20.2 40.2 16 40.2 16 45.8 20.2 45.8 20.2 50 25.8 50 25.8 45.8 30 45.8"></polygon>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>
