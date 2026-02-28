@@ -1,0 +1,22 @@
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Local SQLite/dev data
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Go build/test artifacts
+bin/
+tmp/
+coverage.out
+*.coverprofile
+*.test
+
+# Local logs
+*.log
