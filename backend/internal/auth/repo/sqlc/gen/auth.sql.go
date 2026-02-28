@@ -73,6 +73,33 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
+const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :execrows
+DELETE FROM refresh_tokens
+WHERE expires_at <= ?
+`
+
+func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context, expiresAt string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteExpiredRefreshTokens, expiresAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteRevokedRefreshTokensBefore = `-- name: DeleteRevokedRefreshTokensBefore :execrows
+DELETE FROM refresh_tokens
+WHERE revoked_at IS NOT NULL
+  AND revoked_at <= ?
+`
+
+func (q *Queries) DeleteRevokedRefreshTokensBefore(ctx context.Context, revokedAt sql.NullString) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteRevokedRefreshTokensBefore, revokedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getPermissionsByUserID = `-- name: GetPermissionsByUserID :many
 SELECT DISTINCT p.key
 FROM permissions p
@@ -103,6 +130,27 @@ func (q *Queries) GetPermissionsByUserID(ctx context.Context, userID string) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
+SELECT id, user_id, token_hash, expires_at, revoked_at, created_at
+FROM refresh_tokens
+WHERE token_hash = ?
+LIMIT 1
+`
+
+func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, getRefreshTokenByHash, tokenHash)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getRoleIDByName = `-- name: GetRoleIDByName :one
@@ -169,6 +217,25 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 	return i, err
 }
 
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email
+FROM users
+WHERE id = ?
+LIMIT 1
+`
+
+type GetUserByIDRow struct {
+	ID    string
+	Email string
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i GetUserByIDRow
+	err := row.Scan(&i.ID, &i.Email)
+	return i, err
+}
+
 const getUserCredentialsByEmail = `-- name: GetUserCredentialsByEmail :one
 SELECT id, email, password_hash
 FROM users
@@ -187,4 +254,44 @@ func (q *Queries) GetUserCredentialsByEmail(ctx context.Context, email string) (
 	var i GetUserCredentialsByEmailRow
 	err := row.Scan(&i.ID, &i.Email, &i.PasswordHash)
 	return i, err
+}
+
+const revokeRefreshTokenByHash = `-- name: RevokeRefreshTokenByHash :execrows
+UPDATE refresh_tokens
+SET revoked_at = ?
+WHERE token_hash = ?
+  AND revoked_at IS NULL
+`
+
+type RevokeRefreshTokenByHashParams struct {
+	RevokedAt sql.NullString
+	TokenHash string
+}
+
+func (q *Queries) RevokeRefreshTokenByHash(ctx context.Context, arg RevokeRefreshTokenByHashParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeRefreshTokenByHash, arg.RevokedAt, arg.TokenHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const revokeRefreshTokenByID = `-- name: RevokeRefreshTokenByID :execrows
+UPDATE refresh_tokens
+SET revoked_at = ?
+WHERE id = ?
+  AND revoked_at IS NULL
+`
+
+type RevokeRefreshTokenByIDParams struct {
+	RevokedAt sql.NullString
+	ID        string
+}
+
+func (q *Queries) RevokeRefreshTokenByID(ctx context.Context, arg RevokeRefreshTokenByIDParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeRefreshTokenByID, arg.RevokedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

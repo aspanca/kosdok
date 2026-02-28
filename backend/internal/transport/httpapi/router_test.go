@@ -10,8 +10,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/kosdok/backend/internal/platform/config"
 	"github.com/kosdok/backend/internal/platform/db"
 	"github.com/kosdok/backend/internal/transport/httpapi"
@@ -76,6 +79,56 @@ func TestRegisterAndLoginSetsRefreshCookie(t *testing.T) {
 	require.NotEmpty(t, accessToken)
 }
 
+func TestRefreshRotatesRefreshToken(t *testing.T) {
+	dbConn := newTestDB(t)
+	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
+	require.NoError(t, err)
+
+	loginResult := registerAndLogin(t, r, "rotate2@example.com", "password123")
+	loginCookieHeader := latestRefreshCookie(loginResult.SetCookies)
+	require.NotEmpty(t, loginCookieHeader)
+
+	refreshReq := httptest.NewRequest(http.MethodPost, "/v1/auth/refresh", nil)
+	refreshReq.Header.Add("Cookie", loginCookieHeader)
+	refreshRec := httptest.NewRecorder()
+	r.ServeHTTP(refreshRec, refreshReq)
+	require.Equal(t, http.StatusOK, refreshRec.Code)
+
+	newCookieHeader := latestRefreshCookie(refreshRec.Header().Values("Set-Cookie"))
+	require.NotEmpty(t, newCookieHeader)
+	require.NotEqual(t, loginCookieHeader, newCookieHeader)
+
+	reuseOldReq := httptest.NewRequest(http.MethodPost, "/v1/auth/refresh", nil)
+	reuseOldReq.Header.Add("Cookie", loginCookieHeader)
+	reuseOldRec := httptest.NewRecorder()
+	r.ServeHTTP(reuseOldRec, reuseOldReq)
+	require.Equal(t, http.StatusUnauthorized, reuseOldRec.Code)
+}
+
+func TestLogoutRevokesRefreshToken(t *testing.T) {
+	dbConn := newTestDB(t)
+	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
+	require.NoError(t, err)
+
+	loginResult := registerAndLogin(t, r, "logout@example.com", "password123")
+	refreshCookie := latestRefreshCookie(loginResult.SetCookies)
+	require.NotEmpty(t, refreshCookie)
+
+	logoutReq := httptest.NewRequest(http.MethodPost, "/v1/auth/logout", nil)
+	logoutReq.Header.Add("Cookie", refreshCookie)
+	logoutReq.Header.Set("Authorization", "Bearer "+loginResult.AccessToken)
+	logoutRec := httptest.NewRecorder()
+	r.ServeHTTP(logoutRec, logoutReq)
+	require.Equal(t, http.StatusNoContent, logoutRec.Code)
+	require.Contains(t, logoutRec.Header().Get("Set-Cookie"), "refresh_token=")
+
+	refreshReq := httptest.NewRequest(http.MethodPost, "/v1/auth/refresh", nil)
+	refreshReq.Header.Add("Cookie", refreshCookie)
+	refreshRec := httptest.NewRecorder()
+	r.ServeHTTP(refreshRec, refreshReq)
+	require.Equal(t, http.StatusUnauthorized, refreshRec.Code)
+}
+
 func TestRegisterDuplicateEmailReturnsConflict(t *testing.T) {
 	dbConn := newTestDB(t)
 	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
@@ -117,13 +170,14 @@ func TestLoginInvalidJSON(t *testing.T) {
 
 func TestAuthMeReturnsDBData(t *testing.T) {
 	dbConn := newTestDB(t)
-	seedAuthTestData(t, dbConn)
 
 	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
 	require.NoError(t, err)
 
+	loginResult := registerAndLogin(t, r, "me@example.com", "password123")
+
 	req := httptest.NewRequest(http.MethodGet, "/v1/auth/me", nil)
-	req.Header.Set("X-User-Email", "me@example.com")
+	req.Header.Set("Authorization", "Bearer "+loginResult.AccessToken)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -132,7 +186,9 @@ func TestAuthMeReturnsDBData(t *testing.T) {
 	var response map[string]any
 	err = json.Unmarshal(rec.Body.Bytes(), &response)
 	require.NoError(t, err)
-	require.Equal(t, "usr_me", response["user_id"])
+	userID, ok := response["user_id"].(string)
+	require.True(t, ok)
+	require.True(t, strings.HasPrefix(userID, "usr_"))
 	require.Equal(t, "me@example.com", response["email"])
 
 	roles := response["roles"].([]any)
@@ -151,14 +207,59 @@ func TestAuthMeMissingHeaderReturnsConsistentError(t *testing.T) {
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
 	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 	var response map[string]any
 	err = json.Unmarshal(rec.Body.Bytes(), &response)
 	require.NoError(t, err)
-	require.Equal(t, "invalid_request", response["code"])
+	require.Equal(t, "unauthorized", response["code"])
 	require.NotEmpty(t, response["message"])
+}
+
+func TestAuthMeForbiddenWithoutPermission(t *testing.T) {
+	dbConn := newTestDB(t)
+	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
+	require.NoError(t, err)
+
+	token := signTestAccessToken(t, jwt.MapClaims{
+		"sub":         "usr_any",
+		"email":       "noaccess@example.com",
+		"roles":       []string{"patient"},
+		"permissions": []string{},
+		"iat":         time.Now().Add(-1 * time.Minute).Unix(),
+		"nbf":         time.Now().Add(-1 * time.Minute).Unix(),
+		"exp":         time.Now().Add(15 * time.Minute).Unix(),
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusForbidden, rec.Code)
+
+	var response map[string]any
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+	require.Equal(t, "forbidden", response["code"])
+}
+
+func TestLogoutRequiresAuthentication(t *testing.T) {
+	dbConn := newTestDB(t)
+	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
+	require.NoError(t, err)
+
+	loginResult := registerAndLogin(t, r, "logout-auth@example.com", "password123")
+	refreshCookie := latestRefreshCookie(loginResult.SetCookies)
+	require.NotEmpty(t, refreshCookie)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/logout", nil)
+	req.Header.Add("Cookie", refreshCookie)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
 func newTestDB(t *testing.T) *sql.DB {
@@ -198,16 +299,64 @@ func applyMigrationsFromFiles(t *testing.T, dbConn *sql.DB) {
 	}
 }
 
-func seedAuthTestData(t *testing.T, dbConn *sql.DB) {
+type loginFlowResult struct {
+	AccessToken string
+	SetCookies  []string
+}
+
+func registerAndLogin(t *testing.T, r http.Handler, email string, password string) loginFlowResult {
 	t.Helper()
 
-	seedSQL := []string{
-		`INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES ('usr_me', 'me@example.com', NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');`,
-		`INSERT INTO user_roles (user_id, role_id) SELECT 'usr_me', id FROM roles WHERE name = 'patient';`,
+	registerPayload := map[string]string{"email": email, "password": password}
+	registerBody, err := json.Marshal(registerPayload)
+	require.NoError(t, err)
+
+	registerReq := httptest.NewRequest(http.MethodPost, "/v1/auth/register", bytes.NewReader(registerBody))
+	registerReq.Header.Set("Content-Type", "application/json")
+	registerRec := httptest.NewRecorder()
+	r.ServeHTTP(registerRec, registerReq)
+	require.Equal(t, http.StatusCreated, registerRec.Code)
+
+	loginBody, err := json.Marshal(registerPayload)
+	require.NoError(t, err)
+
+	loginReq := httptest.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewReader(loginBody))
+	loginReq.Header.Set("Content-Type", "application/json")
+	loginRec := httptest.NewRecorder()
+	r.ServeHTTP(loginRec, loginReq)
+	require.Equal(t, http.StatusOK, loginRec.Code)
+
+	var loginResponse map[string]any
+	err = json.Unmarshal(loginRec.Body.Bytes(), &loginResponse)
+	require.NoError(t, err)
+
+	accessToken, ok := loginResponse["access_token"].(string)
+	require.True(t, ok)
+	require.NotEmpty(t, accessToken)
+
+	return loginFlowResult{
+		AccessToken: accessToken,
+		SetCookies:  loginRec.Header().Values("Set-Cookie"),
+	}
+}
+
+func latestRefreshCookie(setCookies []string) string {
+	for _, value := range setCookies {
+		if strings.HasPrefix(value, "refresh_token=") {
+			parts := strings.Split(value, ";")
+			if len(parts) > 0 {
+				return parts[0]
+			}
+		}
 	}
 
-	for _, stmt := range seedSQL {
-		_, err := dbConn.Exec(stmt)
-		require.NoError(t, err)
-	}
+	return ""
+}
+
+func signTestAccessToken(t *testing.T, claims jwt.MapClaims) string {
+	t.Helper()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte("dev-change-me"))
+	require.NoError(t, err)
+	return signed
 }

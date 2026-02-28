@@ -31,9 +31,28 @@ type CreateRefreshTokenParams struct {
 	CreatedAt time.Time
 }
 
+type RefreshToken struct {
+	TokenID   string
+	UserID    string
+	TokenHash string
+	ExpiresAt time.Time
+	RevokedAt *time.Time
+	CreatedAt time.Time
+}
+
+type CleanupRefreshTokensResult struct {
+	ExpiredDeleted int64
+	RevokedDeleted int64
+}
+
 type Repository interface {
 	GetAuthSubjectByEmail(ctx context.Context, email string) (domain.AuthSubject, error)
+	GetAuthSubjectByUserID(ctx context.Context, userID string) (domain.AuthSubject, error)
 	GetUserCredentialsByEmail(ctx context.Context, email string) (UserCredentials, error)
 	CreateUserWithRole(ctx context.Context, params CreateUserWithRoleParams) error
 	CreateRefreshToken(ctx context.Context, params CreateRefreshTokenParams) error
+	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
+	RevokeRefreshTokenByID(ctx context.Context, tokenID string, revokedAt time.Time) error
+	RevokeRefreshTokenByHash(ctx context.Context, tokenHash string, revokedAt time.Time) error
+	CleanupRefreshTokens(ctx context.Context, now time.Time, revokedBefore time.Time) (CleanupRefreshTokensResult, error)
 }

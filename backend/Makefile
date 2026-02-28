@@ -1,7 +1,7 @@
 APP_NAME := api
 DB_PATH ?= ./data/app.db
 
-.PHONY: run test generate-openapi generate-openapi-auth generate-openapi-all generate-sqlc migrate-up
+.PHONY: run test generate-openapi generate-openapi-auth generate-openapi-all generate-sqlc migrate-up clean-tokens
 
 run:
 	go run ./cmd/api
@@ -20,4 +20,7 @@ generate-sqlc:
 	go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 generate
 
 migrate-up:
-	migrate -database "sqlite3://$(DB_PATH)" -path migrations up
+	DB_PATH=$(DB_PATH) go run ./cmd/migrate
+
+clean-tokens:
+	DB_PATH=$(DB_PATH) go run ./cmd/clean-tokens

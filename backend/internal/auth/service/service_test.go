@@ -15,6 +15,7 @@ type fakeRepo struct {
 	err         error
 	email       *string
 	credentials repo.UserCredentials
+	refresh     repo.RefreshToken
 }
 
 func (f fakeRepo) GetAuthSubjectByEmail(_ context.Context, email string) (domain.AuthSubject, error) {
@@ -28,12 +29,32 @@ func (f fakeRepo) GetUserCredentialsByEmail(_ context.Context, _ string) (repo.U
 	return f.credentials, f.err
 }
 
+func (f fakeRepo) GetAuthSubjectByUserID(_ context.Context, _ string) (domain.AuthSubject, error) {
+	return f.subject, f.err
+}
+
 func (f fakeRepo) CreateUserWithRole(_ context.Context, _ repo.CreateUserWithRoleParams) error {
 	return f.err
 }
 
 func (f fakeRepo) CreateRefreshToken(_ context.Context, _ repo.CreateRefreshTokenParams) error {
 	return f.err
+}
+
+func (f fakeRepo) GetRefreshTokenByHash(_ context.Context, _ string) (repo.RefreshToken, error) {
+	return f.refresh, f.err
+}
+
+func (f fakeRepo) RevokeRefreshTokenByID(_ context.Context, _ string, _ time.Time) error {
+	return f.err
+}
+
+func (f fakeRepo) RevokeRefreshTokenByHash(_ context.Context, _ string, _ time.Time) error {
+	return f.err
+}
+
+func (f fakeRepo) CleanupRefreshTokens(_ context.Context, _ time.Time, _ time.Time) (repo.CleanupRefreshTokensResult, error) {
+	return repo.CleanupRefreshTokensResult{}, f.err
 }
 
 type staticClock struct {
@@ -67,4 +88,11 @@ func TestRegisterValidatesPasswordLength(t *testing.T) {
 
 	_, err := svc.Register(context.Background(), "user@example.com", "short")
 	require.ErrorIs(t, err, ErrPasswordTooShort)
+}
+
+func TestRefreshRequiresToken(t *testing.T) {
+	svc := NewService(fakeRepo{}, "test-secret", staticClock{now: time.Unix(0, 0).UTC()})
+
+	_, err := svc.Refresh(context.Background(), "")
+	require.ErrorIs(t, err, ErrRefreshTokenRequired)
 }

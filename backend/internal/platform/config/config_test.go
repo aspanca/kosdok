@@ -18,6 +18,7 @@ func TestLoadSQLiteDefaults(t *testing.T) {
 	t.Setenv("SQLITE_SYNCHRONOUS", "")
 	t.Setenv("SQLITE_BUSY_TIMEOUT_MS", "")
 	t.Setenv("SQLITE_FOREIGN_KEYS", "")
+	t.Setenv("REFRESH_TOKEN_REVOKED_RETENTION_DAYS", "")
 
 	cfg := Load()
 
@@ -33,6 +34,9 @@ func TestLoadSQLiteDefaults(t *testing.T) {
 	if !cfg.SQLiteForeignKeysOn {
 		t.Fatalf("SQLiteForeignKeysOn = %t, want %t", cfg.SQLiteForeignKeysOn, true)
 	}
+	if cfg.RefreshTokenRevokedRetentionDays != 30 {
+		t.Fatalf("RefreshTokenRevokedRetentionDays = %d, want %d", cfg.RefreshTokenRevokedRetentionDays, 30)
+	}
 }
 
 func TestLoadSQLiteFromEnv(t *testing.T) {
@@ -40,6 +44,7 @@ func TestLoadSQLiteFromEnv(t *testing.T) {
 	t.Setenv("SQLITE_SYNCHRONOUS", "FULL")
 	t.Setenv("SQLITE_BUSY_TIMEOUT_MS", "7500")
 	t.Setenv("SQLITE_FOREIGN_KEYS", "false")
+	t.Setenv("REFRESH_TOKEN_REVOKED_RETENTION_DAYS", "60")
 
 	cfg := Load()
 
@@ -54,5 +59,8 @@ func TestLoadSQLiteFromEnv(t *testing.T) {
 	}
 	if cfg.SQLiteForeignKeysOn {
 		t.Fatalf("SQLiteForeignKeysOn = %t, want %t", cfg.SQLiteForeignKeysOn, false)
+	}
+	if cfg.RefreshTokenRevokedRetentionDays != 60 {
+		t.Fatalf("RefreshTokenRevokedRetentionDays = %d, want %d", cfg.RefreshTokenRevokedRetentionDays, 60)
 	}
 }

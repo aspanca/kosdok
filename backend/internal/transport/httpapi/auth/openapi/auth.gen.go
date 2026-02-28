@@ -6,6 +6,7 @@ package authapi
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -15,8 +16,11 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
-	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+)
+
+const (
+	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
 // AuthMeResponse defines model for AuthMeResponse.
@@ -59,11 +63,6 @@ type RegisterResponse struct {
 	UserId string              `json:"user_id"`
 }
 
-// GetAuthMeParams defines parameters for GetAuthMe.
-type GetAuthMeParams struct {
-	XUserEmail openapi_types.Email `json:"X-User-Email"`
-}
-
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -75,9 +74,15 @@ type ServerInterface interface {
 	// Login user with email and password
 	// (POST /auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
+	// Revoke current refresh token and clear session cookie
+	// (POST /auth/logout)
+	Logout(w http.ResponseWriter, r *http.Request)
 	// Get current authenticated user RBAC claims
 	// (GET /auth/me)
-	GetAuthMe(w http.ResponseWriter, r *http.Request, params GetAuthMeParams)
+	GetAuthMe(w http.ResponseWriter, r *http.Request)
+	// Rotate refresh token and issue new access token
+	// (POST /auth/refresh)
+	Refresh(w http.ResponseWriter, r *http.Request)
 	// Register user with email and password
 	// (POST /auth/register)
 	Register(w http.ResponseWriter, r *http.Request)
@@ -93,9 +98,21 @@ func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Revoke current refresh token and clear session cookie
+// (POST /auth/logout)
+func (_ Unimplemented) Logout(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Get current authenticated user RBAC claims
 // (GET /auth/me)
-func (_ Unimplemented) GetAuthMe(w http.ResponseWriter, r *http.Request, params GetAuthMeParams) {
+func (_ Unimplemented) GetAuthMe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Rotate refresh token and issue new access token
+// (POST /auth/refresh)
+func (_ Unimplemented) Refresh(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -128,41 +145,51 @@ func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request)
 	handler.ServeHTTP(w, r)
 }
 
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Logout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAuthMe operation middleware
 func (siw *ServerInterfaceWrapper) GetAuthMe(w http.ResponseWriter, r *http.Request) {
 
-	var err error
+	ctx := r.Context()
 
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetAuthMeParams
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
-	headers := r.Header
-
-	// ------------- Required header parameter "X-User-Email" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Email")]; found {
-		var XUserEmail openapi_types.Email
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Email", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "X-User-Email", valueList[0], &XUserEmail, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "email"})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Email", Err: err})
-			return
-		}
-
-		params.XUserEmail = XUserEmail
-
-	} else {
-		err := fmt.Errorf("Header parameter X-User-Email is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Email", Err: err})
-		return
-	}
+	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetAuthMe(w, r, params)
+		siw.Handler.GetAuthMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Refresh operation middleware
+func (siw *ServerInterfaceWrapper) Refresh(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Refresh(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -303,7 +330,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/auth/login", wrapper.Login)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/logout", wrapper.Logout)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/auth/me", wrapper.GetAuthMe)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/refresh", wrapper.Refresh)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/register", wrapper.Register)
@@ -315,21 +348,23 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/9xXTW/jNhD9K8S0R9uSkz1kdWqyCBZBt0ARtECBwjBYcSxxV/zocJSNEfi/FyRlJ3Ls",
-	"pgusg6A3mSJn5j2+eSM/QO2MdxYtB6geINQtGpkeL3tuf8FbDN7ZgHHFk/NIrDG9RyN1lx7upfEdQgV9",
-	"QPpp+DmrnYEJrBwZyVAN2yfAax+3BiZtG9hMwCMZHYJ2Noyi/Qmy57YyWBFKBYsJaEaT9jyLMSxIIrmO",
-	"v8l1uB/NS9Zo+dsCRURLrfZh0nJ+dv4cTMyMf/eaUMWM28OTHfhc1xjzYhfG/fUZa45pr4kcHae+dgrH",
-	"JWl7JzutljE9Bj7Es8EQZLN37rcWxXBGeLnunFRCBzGEm70IMVXyGPsQlk+u0fZ2qOt0KpIhfHW0d1N1",
-	"K22DU4PTfF9G209oG26hungJ2jbVLvK/gDt2UbKuMYQluy9ox5Wp3pj1NL+f5vcHUOG914Rhqcen35fl",
-	"E0605fOzDE6b3kA130XSlrFBSsqOOZZ5/WkhVygJ6cWLHiEZRRtVeYijW2x0YKT/qwYe8Z3aKt+2rT3n",
-	"Jp7UduVSTZpTlp9dUO6LiNNFXP56AxO4Q4pOCBWUs/msjPU5j1Z6DRWcz8rZeboBbhO2Ik6Foot9l4h2",
-	"WVGRbsna2RsFVW5LyGVj4Cun1tk3LUeuYmd63+k6nSg+B2cfh198+pFwBRX8UDxOx2IYjcXIzzZjcph6",
-	"TAtZCangs7L83rkHnaXkCkNN2nNmMG0QoU/duuq7SOa771jAeDAdKOAmT47tUMn556+fvyZUaFnLLiQB",
-	"h94YSesdRVHE4qvmViQRC2mV2HX5BFg2YfsJAosYIOvOpO5u8IDmPiLnT6akVpIGGSkGeYAoVWhRqmS0",
-	"VsYo8Mf094A0vd720EhEkyd8vOQLm8UJFbf3FXiA8Q89EVrOjHpyK91hovP26vKDqDupTXgbMnz3evnj",
-	"1QrrWKxcb9WeAj8ii3pgLaoq6rSWjCpz+JS340qkYeocN8HtXDqRD+6P9f9khfMTpD9+C3lPpuTNmeL7",
-	"18t/nS2ui3+k1gLvdeB9V9zS+a3GGIMg3W2drqcuWh2zr4qic7XsWhe4uigvyuJuDpvF5p8AAAD//+8R",
-	"i5hyDgAA",
+	"H4sIAAAAAAAC/9xWS2/jNhD+KwTbo+NHkkNWpyaL7SLtLlC4KXoIDIORxhI3IkcdjpIYC//3gqT8kPxI",
+	"A6yToCdbEjmPb76Zb77LFE2FFiw7mXyXLi3AqPD3subiK4zBVWgd+DcVYQXEGsJ3MEqX4c+TMlUJMpG1",
+	"A/qleeynaGRPzpCMYpk0x3uS55U/6pi0zeWiJysgo53TaF3L2q1UNReJgYRAZXLSk5rBhDNbNpoXikjN",
+	"/TNhCV1rlWINll9myGc01Vk3TZqOTs+2k/Ge4Z9aE2Te4/Jyb5V8jKud82RlBu++Qcre7ScipP3Qp5hB",
+	"OyRtH1Sps6l3D4534WzAOZV37t0UIJo7olLzElUmtBONuf6zKYZI1rZ35fIFc23HTVzHY5Fy7hGpU6m0",
+	"UDaHEwMnsV5G2y9gcy5kcvFcaktXK8sHkttXKJWm4NyU8R5sO7KsNmZ+Er+fxO87soKnShO4qW7f/jAc",
+	"bmCiLZ+dxuS0qY1MRitL2jLkQIHZ3sc0vt8M5AoUAT1b6FYmLWutKHdhNIZcOwb6v3Jgnd+xR+X7Hmvb",
+	"2Cx60kFak+b5n15YYvB3gXFeXtZPvy5z/+3vG9mLMuQt3XXYWTBXcuENazvDkKvmEP3v6DK8F96suPzj",
+	"WvbkA5CfsDKRw/6oP/R5YwVWVVom8qw/7J+FynIRohp4tRmUvp9DATEy1ZdRsUZ7nckktruMcIDjK8zm",
+	"cR5b9jXwHV9VpU7DjcE3h3Ytqv7fzwQzmcifBmvVHTSSO2jNyUUbdKYawovIsBDw6XD4o303/A3OM3Ap",
+	"6YojguGAcHWYArO69GCe/8AA2oK3I4DrqEhLsYr+R6/vPyXIwLJWpYv8ro1RNF9B5JtDPGouRGgOoWwm",
+	"VtOjJ1nlbrnayIk3sOId1nyQeP77FgXO/c9WqbDmrVq9IlZf/Wpjc4G0XCRElA8R5WNzLsjktj0RbieL",
+	"ySasY3jAexBpTQSWBcGMwBXRUkA3LUGRcBDWKZEi3ms4gLQJ8zmHHSB/Bo5Lrzxiq3XW6h3wfWxSDVSq",
+	"CGe6hJDp+Oryo0hLpY17fzX18Zy/Xjx/eXAssphhbbOXUeoz8IpPnhO+n1PFkEXIN2Hez6OGiPtbdtwc",
+	"eMuxfRO6ZNkzbzgSluMTScRtMWt3cmeWjpEVw45m187VICw8ttl3qExxOTtUp+bEcWS9u/3+J2UfHcH9",
+	"/uLEMxGSd6fxH17P/6eo2CWByuYCnrTjrsgv4XypzofxRH4jDdOpprJZZpPBoMRUlQU6Ti6GF8PBw0gu",
+	"Jot/AwAA//+dcZkymREAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

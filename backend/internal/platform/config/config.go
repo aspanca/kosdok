@@ -6,26 +6,28 @@ import (
 )
 
 type Config struct {
-	Port                string
-	Env                 string
-	DBPath              string
-	JWTSecret           string
-	SQLiteJournalMode   string
-	SQLiteSynchronous   string
-	SQLiteBusyTimeoutMS int
-	SQLiteForeignKeysOn bool
+	Port                             string
+	Env                              string
+	DBPath                           string
+	JWTSecret                        string
+	SQLiteJournalMode                string
+	SQLiteSynchronous                string
+	SQLiteBusyTimeoutMS              int
+	SQLiteForeignKeysOn              bool
+	RefreshTokenRevokedRetentionDays int
 }
 
 func Load() Config {
 	return Config{
-		Port:                getEnv("PORT", "8080"),
-		Env:                 getEnv("ENV", "development"),
-		DBPath:              getEnv("DB_PATH", "./data/app.db"),
-		JWTSecret:           getEnv("JWT_SECRET", "dev-change-me"),
-		SQLiteJournalMode:   getEnv("SQLITE_JOURNAL_MODE", "WAL"),
-		SQLiteSynchronous:   getEnv("SQLITE_SYNCHRONOUS", "NORMAL"),
-		SQLiteBusyTimeoutMS: getEnvInt("SQLITE_BUSY_TIMEOUT_MS", 5000),
-		SQLiteForeignKeysOn: getEnvBool("SQLITE_FOREIGN_KEYS", true),
+		Port:                             getEnv("PORT", "8080"),
+		Env:                              getEnv("ENV", "development"),
+		DBPath:                           getEnv("DB_PATH", "./data/app.db"),
+		JWTSecret:                        getEnv("JWT_SECRET", "dev-change-me"),
+		SQLiteJournalMode:                getEnv("SQLITE_JOURNAL_MODE", "WAL"),
+		SQLiteSynchronous:                getEnv("SQLITE_SYNCHRONOUS", "NORMAL"),
+		SQLiteBusyTimeoutMS:              getEnvInt("SQLITE_BUSY_TIMEOUT_MS", 5000),
+		SQLiteForeignKeysOn:              getEnvBool("SQLITE_FOREIGN_KEYS", true),
+		RefreshTokenRevokedRetentionDays: getEnvInt("REFRESH_TOKEN_REVOKED_RETENTION_DAYS", 30),
 	}
 }
 

@@ -29,6 +29,10 @@ func main() {
 	}
 	defer dbConn.Close()
 
+	if err := db.ApplyMigrationsFromDir(context.Background(), dbConn, "./migrations"); err != nil {
+		log.Fatalf("apply migrations: %v", err)
+	}
+
 	r, err := httpapi.NewRouter(cfg, dbConn)
 	if err != nil {
 		log.Fatalf("build router: %v", err)

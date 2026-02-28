@@ -8,6 +8,12 @@ FROM users
 WHERE email = ?
 LIMIT 1;
 
+-- name: GetUserByID :one
+SELECT id, email
+FROM users
+WHERE id = ?
+LIMIT 1;
+
 -- name: GetUserCredentialsByEmail :one
 SELECT id, email, password_hash
 FROM users
@@ -27,6 +33,33 @@ VALUES (?, ?);
 -- name: CreateRefreshToken :exec
 INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked_at, created_at)
 VALUES (?, ?, ?, ?, NULL, ?);
+
+-- name: GetRefreshTokenByHash :one
+SELECT id, user_id, token_hash, expires_at, revoked_at, created_at
+FROM refresh_tokens
+WHERE token_hash = ?
+LIMIT 1;
+
+-- name: RevokeRefreshTokenByID :execrows
+UPDATE refresh_tokens
+SET revoked_at = ?
+WHERE id = ?
+  AND revoked_at IS NULL;
+
+-- name: RevokeRefreshTokenByHash :execrows
+UPDATE refresh_tokens
+SET revoked_at = ?
+WHERE token_hash = ?
+  AND revoked_at IS NULL;
+
+-- name: DeleteExpiredRefreshTokens :execrows
+DELETE FROM refresh_tokens
+WHERE expires_at <= ?;
+
+-- name: DeleteRevokedRefreshTokensBefore :execrows
+DELETE FROM refresh_tokens
+WHERE revoked_at IS NOT NULL
+  AND revoked_at <= ?;
 
 -- name: GetRolesByUserID :many
 SELECT r.name

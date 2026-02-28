@@ -67,16 +67,31 @@ var loginErrorRules = []authErrorRule{
 
 var authMeErrorRules = []authErrorRule{
 	{
-		match:   func(err error) bool { return errors.Is(err, authservice.ErrEmailRequired) },
+		match:   func(err error) bool { return errors.Is(err, authservice.ErrUserIDRequired) },
 		status:  http.StatusBadRequest,
 		code:    "invalid_request",
-		message: "Email header is required.",
+		message: "User id is required.",
 	},
 	{
 		match:   func(err error) bool { return errors.Is(err, domain.ErrUserNotFound) },
 		status:  http.StatusNotFound,
 		code:    "not_found",
 		message: "User not found.",
+	},
+}
+
+var refreshErrorRules = []authErrorRule{
+	{
+		match:   func(err error) bool { return errors.Is(err, authservice.ErrRefreshTokenRequired) },
+		status:  http.StatusUnauthorized,
+		code:    "invalid_refresh_token",
+		message: "Refresh token is required.",
+	},
+	{
+		match:   func(err error) bool { return errors.Is(err, authservice.ErrInvalidRefreshToken) },
+		status:  http.StatusUnauthorized,
+		code:    "invalid_refresh_token",
+		message: "Refresh token is invalid or expired.",
 	},
 }
 
@@ -96,6 +111,10 @@ func writeAuthMeError(w http.ResponseWriter, err error) {
 	writeMappedError(w, err, authMeErrorRules)
 }
 
+func writeRefreshError(w http.ResponseWriter, err error) {
+	writeMappedError(w, err, refreshErrorRules)
+}
+
 func writeMappedError(w http.ResponseWriter, err error, rules []authErrorRule) {
 	for _, rule := range rules {
 		if rule.match(err) {
@@ -105,4 +124,20 @@ func writeMappedError(w http.ResponseWriter, err error, rules []authErrorRule) {
 	}
 
 	respond.JSON(w, http.StatusInternalServerError, mapper.ToErrorResponse("internal_error", "Internal server error."))
+}
+
+func classifyAuthError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	for _, ruleSet := range [][]authErrorRule{registerErrorRules, loginErrorRules, authMeErrorRules, refreshErrorRules} {
+		for _, rule := range ruleSet {
+			if rule.match(err) {
+				return rule.code
+			}
+		}
+	}
+
+	return "internal_error"
 }

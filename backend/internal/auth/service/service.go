@@ -21,10 +21,13 @@ import (
 )
 
 var (
-	ErrEmailRequired      = errors.New("email is required")
-	ErrPasswordRequired   = errors.New("password is required")
-	ErrPasswordTooShort   = errors.New("password must be at least 8 characters")
-	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrEmailRequired        = errors.New("email is required")
+	ErrUserIDRequired       = errors.New("user id is required")
+	ErrPasswordRequired     = errors.New("password is required")
+	ErrPasswordTooShort     = errors.New("password must be at least 8 characters")
+	ErrInvalidCredentials   = errors.New("invalid credentials")
+	ErrRefreshTokenRequired = errors.New("refresh token is required")
+	ErrInvalidRefreshToken  = errors.New("invalid refresh token")
 )
 
 const (
@@ -78,6 +81,15 @@ func (s *Service) GetMe(ctx context.Context, email string) (domain.AuthSubject, 
 	}
 
 	return s.repo.GetAuthSubjectByEmail(ctx, normalized)
+}
+
+func (s *Service) GetMeByUserID(ctx context.Context, userID string) (domain.AuthSubject, error) {
+	normalized := strings.TrimSpace(userID)
+	if normalized == "" {
+		return domain.AuthSubject{}, ErrUserIDRequired
+	}
+
+	return s.repo.GetAuthSubjectByUserID(ctx, normalized)
 }
 
 func (s *Service) Register(ctx context.Context, email string, password string) (RegisterResult, error) {
@@ -177,6 +189,83 @@ func (s *Service) Login(ctx context.Context, email string, password string) (Log
 	}, nil
 }
 
+func (s *Service) Refresh(ctx context.Context, refreshToken string) (LoginResult, error) {
+	refreshToken = strings.TrimSpace(refreshToken)
+	if refreshToken == "" {
+		return LoginResult{}, ErrRefreshTokenRequired
+	}
+
+	now := s.clock.Now().UTC()
+	refreshTokenHash := hashRefreshToken(refreshToken)
+	storedToken, err := s.repo.GetRefreshTokenByHash(ctx, refreshTokenHash)
+	if err != nil {
+		if errors.Is(err, domain.ErrRefreshTokenInvalid) {
+			return LoginResult{}, ErrInvalidRefreshToken
+		}
+		return LoginResult{}, err
+	}
+
+	if storedToken.RevokedAt != nil || !storedToken.ExpiresAt.After(now) {
+		return LoginResult{}, ErrInvalidRefreshToken
+	}
+
+	subject, err := s.repo.GetAuthSubjectByUserID(ctx, storedToken.UserID)
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	accessToken, expiresAt, err := s.signAccessToken(subject, now)
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	newRefreshTokenPlain, newRefreshTokenHash, err := generateRefreshToken()
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	err = s.repo.RevokeRefreshTokenByID(ctx, storedToken.TokenID, now)
+	if err != nil {
+		if errors.Is(err, domain.ErrRefreshTokenInvalid) {
+			return LoginResult{}, ErrInvalidRefreshToken
+		}
+		return LoginResult{}, err
+	}
+
+	err = s.repo.CreateRefreshToken(ctx, repo.CreateRefreshTokenParams{
+		TokenID:   "rt_" + uuid.NewString(),
+		UserID:    subject.UserID,
+		TokenHash: newRefreshTokenHash,
+		ExpiresAt: now.Add(s.refreshTokenTTL),
+		CreatedAt: now,
+	})
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	return LoginResult{
+		AccessToken:  accessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    int32(time.Until(expiresAt).Seconds()),
+		RefreshToken: newRefreshTokenPlain,
+	}, nil
+}
+
+func (s *Service) Logout(ctx context.Context, refreshToken string) error {
+	refreshToken = strings.TrimSpace(refreshToken)
+	if refreshToken == "" {
+		return nil
+	}
+
+	hash := hashRefreshToken(refreshToken)
+	err := s.repo.RevokeRefreshTokenByHash(ctx, hash, s.clock.Now().UTC())
+	if err != nil && !errors.Is(err, domain.ErrRefreshTokenInvalid) {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Service) signAccessToken(subject domain.AuthSubject, now time.Time) (string, time.Time, error) {
 	expiresAt := now.Add(s.accessTokenTTL)
 	claims := jwt.MapClaims{
@@ -266,8 +355,12 @@ func generateRefreshToken() (plain string, hashed string, err error) {
 	}
 
 	plain = base64.RawURLEncoding.EncodeToString(randomBytes)
-	sum := sha256.Sum256([]byte(plain))
-	hashed = hex.EncodeToString(sum[:])
+	hashed = hashRefreshToken(plain)
 
 	return plain, hashed, nil
+}
+
+func hashRefreshToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }

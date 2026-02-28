@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -13,6 +15,7 @@ import (
 	platformclock "github.com/kosdok/backend/internal/platform/clock"
 	"github.com/kosdok/backend/internal/platform/config"
 	platformlog "github.com/kosdok/backend/internal/platform/log"
+	authtransport "github.com/kosdok/backend/internal/transport/httpapi/auth"
 	authhandler "github.com/kosdok/backend/internal/transport/httpapi/auth/handler"
 	authapi "github.com/kosdok/backend/internal/transport/httpapi/auth/openapi"
 	"github.com/kosdok/backend/internal/transport/httpapi/respond"
@@ -28,13 +31,16 @@ func NewRouter(cfg config.Config, dbConn *sql.DB) (http.Handler, error) {
 	r.Use(chimw.RealIP)
 	r.Use(middleware.Recover(logger))
 	r.Use(middleware.Logging(logger))
+	r.Use(middleware.JWTClaims(cfg.JWTSecret))
+	r.Use(middleware.EnforceRouteAccess(authtransport.RouteAccessRules(apiV1BasePath)))
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		respond.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
 	authModule := auth.NewModule(dbConn, cfg, platformclock.RealClock{})
-	authHandler := authhandler.NewAuthHandler(cfg, authModule.Service)
+	auditLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	authHandler := authhandler.NewAuthHandler(cfg, authModule.Service, auditLogger)
 	authapi.HandlerWithOptions(authHandler, authapi.ChiServerOptions{
 		BaseRouter: r,
 		BaseURL:    apiV1BasePath,
