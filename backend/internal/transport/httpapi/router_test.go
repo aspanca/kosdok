@@ -31,10 +31,23 @@ func TestHealthEndpoint(t *testing.T) {
 	require.JSONEq(t, `{"status":"ok"}`, rec.Body.String())
 }
 
-func TestLoginSetsRefreshCookie(t *testing.T) {
+func TestRegisterAndLoginSetsRefreshCookie(t *testing.T) {
 	dbConn := newTestDB(t)
 	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
 	require.NoError(t, err)
+
+	registerPayload := map[string]string{
+		"email":    "user@example.com",
+		"password": "password123",
+	}
+	registerBody, err := json.Marshal(registerPayload)
+	require.NoError(t, err)
+
+	registerReq := httptest.NewRequest(http.MethodPost, "/v1/auth/register", bytes.NewReader(registerBody))
+	registerReq.Header.Set("Content-Type", "application/json")
+	registerRec := httptest.NewRecorder()
+	r.ServeHTTP(registerRec, registerReq)
+	require.Equal(t, http.StatusCreated, registerRec.Code)
 
 	payload := map[string]string{
 		"email":    "user@example.com",
@@ -56,8 +69,36 @@ func TestLoginSetsRefreshCookie(t *testing.T) {
 	var response map[string]any
 	err = json.Unmarshal(rec.Body.Bytes(), &response)
 	require.NoError(t, err)
-	require.Equal(t, "dummy-access-token", response["access_token"])
 	require.Equal(t, "Bearer", response["token_type"])
+
+	accessToken, ok := response["access_token"].(string)
+	require.True(t, ok)
+	require.NotEmpty(t, accessToken)
+}
+
+func TestRegisterDuplicateEmailReturnsConflict(t *testing.T) {
+	dbConn := newTestDB(t)
+	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
+	require.NoError(t, err)
+
+	payload := map[string]string{
+		"email":    "dup@example.com",
+		"password": "password123",
+	}
+	body, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	firstReq := httptest.NewRequest(http.MethodPost, "/v1/auth/register", bytes.NewReader(body))
+	firstReq.Header.Set("Content-Type", "application/json")
+	firstRec := httptest.NewRecorder()
+	r.ServeHTTP(firstRec, firstReq)
+	require.Equal(t, http.StatusCreated, firstRec.Code)
+
+	secondReq := httptest.NewRequest(http.MethodPost, "/v1/auth/register", bytes.NewReader(body))
+	secondReq.Header.Set("Content-Type", "application/json")
+	secondRec := httptest.NewRecorder()
+	r.ServeHTTP(secondRec, secondReq)
+	require.Equal(t, http.StatusConflict, secondRec.Code)
 }
 
 func TestLoginInvalidJSON(t *testing.T) {

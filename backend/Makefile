@@ -11,6 +11,11 @@ test:
 
 generate-openapi: generate-openapi-auth
 
+generate-openapi-all: generate-openapi-auth
+
+generate-openapi-auth:
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.6.0 --config codegen/oapi/auth.yaml api/auth/auth_api.yaml
+
 generate-sqlc:
 	go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 generate
 

@@ -46,6 +46,19 @@ type LoginResponse struct {
 	TokenType   string `json:"token_type"`
 }
 
+// RegisterRequest defines model for RegisterRequest.
+type RegisterRequest struct {
+	Email    openapi_types.Email `json:"email"`
+	Password string              `json:"password"`
+}
+
+// RegisterResponse defines model for RegisterResponse.
+type RegisterResponse struct {
+	Email  openapi_types.Email `json:"email"`
+	Roles  []string            `json:"roles"`
+	UserId string              `json:"user_id"`
+}
+
 // GetAuthMeParams defines parameters for GetAuthMe.
 type GetAuthMeParams struct {
 	XUserEmail openapi_types.Email `json:"X-User-Email"`
@@ -53,6 +66,9 @@ type GetAuthMeParams struct {
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
+
+// RegisterJSONRequestBody defines body for Register for application/json ContentType.
+type RegisterJSONRequestBody = RegisterRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -62,6 +78,9 @@ type ServerInterface interface {
 	// Get current authenticated user RBAC claims
 	// (GET /auth/me)
 	GetAuthMe(w http.ResponseWriter, r *http.Request, params GetAuthMeParams)
+	// Register user with email and password
+	// (POST /auth/register)
+	Register(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -77,6 +96,12 @@ func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request) {
 // Get current authenticated user RBAC claims
 // (GET /auth/me)
 func (_ Unimplemented) GetAuthMe(w http.ResponseWriter, r *http.Request, params GetAuthMeParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Register user with email and password
+// (POST /auth/register)
+func (_ Unimplemented) Register(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -138,6 +163,20 @@ func (siw *ServerInterfaceWrapper) GetAuthMe(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAuthMe(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Register operation middleware
+func (siw *ServerInterfaceWrapper) Register(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Register(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -266,6 +305,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/auth/me", wrapper.GetAuthMe)
 	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/register", wrapper.Register)
+	})
 
 	return r
 }
@@ -273,19 +315,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"i5hyDgAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

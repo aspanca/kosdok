@@ -5,6 +5,37 @@ info:
 servers:
   - url: http://localhost:8080/v1
 paths:
+  /auth/register:
+    post:
+      operationId: Register
+      tags:
+        - auth
+      summary: Register user with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /auth/login:
     post:
       operationId: Login
@@ -70,6 +101,40 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 8
+          example: change-me-123
+    RegisterResponse:
+      type: object
+      required:
+        - user_id
+        - email
+        - roles
+      properties:
+        user_id:
+          type: string
+          example: usr_123
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        roles:
+          type: array
+          items:
+            type: string
+          example:
+            - patient
     LoginRequest:
       type: object
       required:

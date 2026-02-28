@@ -13,6 +13,15 @@ type Permission struct {
 	Key string
 }
 
+type RefreshToken struct {
+	ID        string
+	UserID    string
+	TokenHash string
+	ExpiresAt string
+	RevokedAt sql.NullString
+	CreatedAt string
+}
+
 type Role struct {
 	ID   int64
 	Name string

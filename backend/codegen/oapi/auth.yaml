@@ -3,4 +3,4 @@ generate:
   chi-server: true
   embedded-spec: true
   models: true
-output: internal/transport/httpapi/authapi/auth.gen.go
+output: internal/transport/httpapi/auth/openapi/auth.gen.go

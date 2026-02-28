@@ -2,15 +2,13 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 
-	"github.com/kosdok/backend/internal/auth/domain"
 	authservice "github.com/kosdok/backend/internal/auth/service"
 	"github.com/kosdok/backend/internal/platform/config"
-	"github.com/kosdok/backend/internal/transport/httpapi/authapi"
-	"github.com/kosdok/backend/internal/transport/httpapi/mapper"
+	"github.com/kosdok/backend/internal/transport/httpapi/auth/mapper"
+	authapi "github.com/kosdok/backend/internal/transport/httpapi/auth/openapi"
 	"github.com/kosdok/backend/internal/transport/httpapi/respond"
 )
 
@@ -23,42 +21,47 @@ func NewAuthHandler(cfg config.Config, service *authservice.Service) *AuthHandle
 	return &AuthHandler{config: cfg, service: service}
 }
 
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	var payload authapi.RegisterRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&payload); err != nil {
+		writeMalformedJSONError(w)
+		return
+	}
+
+	result, err := h.service.Register(r.Context(), string(payload.Email), payload.Password)
+	if err != nil {
+		writeRegisterError(w, err)
+		return
+	}
+
+	respond.JSON(w, http.StatusCreated, mapper.ToRegisterResponse(result))
+}
+
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var payload authapi.LoginRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&payload); err != nil {
-		respond.JSON(w, http.StatusBadRequest, mapper.ToErrorResponse("invalid_request", "Malformed JSON request body."))
+		writeMalformedJSONError(w)
 		return
 	}
 
-	email := strings.TrimSpace(string(payload.Email))
-	password := strings.TrimSpace(payload.Password)
-	if email == "" || password == "" {
-		respond.JSON(w, http.StatusBadRequest, mapper.ToErrorResponse("invalid_request", "Email and password are required."))
+	result, err := h.service.Login(r.Context(), string(payload.Email), payload.Password)
+	if err != nil {
+		writeLoginError(w, err)
 		return
 	}
 
-	setRefreshCookie(w, h.config, "dummy-refresh-token")
-
-	respond.JSON(w, http.StatusOK, authapi.LoginResponse{
-		AccessToken: "dummy-access-token",
-		TokenType:   "Bearer",
-		ExpiresIn:   900,
-	})
+	setRefreshCookie(w, h.config, result.RefreshToken)
+	respond.JSON(w, http.StatusOK, mapper.ToLoginResponse(result))
 }
 
 func (h *AuthHandler) GetAuthMe(w http.ResponseWriter, r *http.Request, params authapi.GetAuthMeParams) {
 	subject, err := h.service.GetMe(r.Context(), string(params.XUserEmail))
 	if err != nil {
-		switch {
-		case errors.Is(err, authservice.ErrEmailRequired):
-			respond.JSON(w, http.StatusBadRequest, mapper.ToErrorResponse("invalid_request", "Email header is required."))
-		case errors.Is(err, domain.ErrUserNotFound):
-			respond.JSON(w, http.StatusNotFound, mapper.ToErrorResponse("not_found", "User not found."))
-		default:
-			respond.JSON(w, http.StatusInternalServerError, mapper.ToErrorResponse("internal_error", "Internal server error."))
-		}
+		writeAuthMeError(w, err)
 		return
 	}
 
@@ -66,6 +69,11 @@ func (h *AuthHandler) GetAuthMe(w http.ResponseWriter, r *http.Request, params a
 }
 
 func setRefreshCookie(w http.ResponseWriter, cfg config.Config, token string) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    token,

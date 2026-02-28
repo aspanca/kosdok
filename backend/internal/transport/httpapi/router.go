@@ -10,10 +10,11 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/kosdok/backend/internal/auth"
 	"github.com/kosdok/backend/internal/middleware"
+	platformclock "github.com/kosdok/backend/internal/platform/clock"
 	"github.com/kosdok/backend/internal/platform/config"
 	platformlog "github.com/kosdok/backend/internal/platform/log"
-	"github.com/kosdok/backend/internal/transport/httpapi/authapi"
-	"github.com/kosdok/backend/internal/transport/httpapi/handler"
+	authhandler "github.com/kosdok/backend/internal/transport/httpapi/auth/handler"
+	authapi "github.com/kosdok/backend/internal/transport/httpapi/auth/openapi"
 	"github.com/kosdok/backend/internal/transport/httpapi/respond"
 )
 
@@ -32,8 +33,8 @@ func NewRouter(cfg config.Config, dbConn *sql.DB) (http.Handler, error) {
 		respond.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	authModule := auth.NewModule(dbConn)
-	authHandler := handler.NewAuthHandler(cfg, authModule.Service)
+	authModule := auth.NewModule(dbConn, cfg, platformclock.RealClock{})
+	authHandler := authhandler.NewAuthHandler(cfg, authModule.Service)
 	authapi.HandlerWithOptions(authHandler, authapi.ChiServerOptions{
 		BaseRouter: r,
 		BaseURL:    apiV1BasePath,

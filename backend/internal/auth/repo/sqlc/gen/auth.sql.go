@@ -7,7 +7,71 @@ package authdb
 
 import (
 	"context"
+	"database/sql"
 )
+
+const addUserRole = `-- name: AddUserRole :exec
+INSERT INTO user_roles (user_id, role_id)
+VALUES (?, ?)
+`
+
+type AddUserRoleParams struct {
+	UserID string
+	RoleID int64
+}
+
+func (q *Queries) AddUserRole(ctx context.Context, arg AddUserRoleParams) error {
+	_, err := q.db.ExecContext(ctx, addUserRole, arg.UserID, arg.RoleID)
+	return err
+}
+
+const createRefreshToken = `-- name: CreateRefreshToken :exec
+INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked_at, created_at)
+VALUES (?, ?, ?, ?, NULL, ?)
+`
+
+type CreateRefreshTokenParams struct {
+	ID        string
+	UserID    string
+	TokenHash string
+	ExpiresAt string
+	CreatedAt string
+}
+
+func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error {
+	_, err := q.db.ExecContext(ctx, createRefreshToken,
+		arg.ID,
+		arg.UserID,
+		arg.TokenHash,
+		arg.ExpiresAt,
+		arg.CreatedAt,
+	)
+	return err
+}
+
+const createUser = `-- name: CreateUser :exec
+INSERT INTO users (id, email, password_hash, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?)
+`
+
+type CreateUserParams struct {
+	ID           string
+	Email        string
+	PasswordHash sql.NullString
+	CreatedAt    string
+	UpdatedAt    string
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
+	_, err := q.db.ExecContext(ctx, createUser,
+		arg.ID,
+		arg.Email,
+		arg.PasswordHash,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
+}
 
 const getPermissionsByUserID = `-- name: GetPermissionsByUserID :many
 SELECT DISTINCT p.key
@@ -39,6 +103,20 @@ func (q *Queries) GetPermissionsByUserID(ctx context.Context, userID string) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const getRoleIDByName = `-- name: GetRoleIDByName :one
+SELECT id
+FROM roles
+WHERE name = ?
+LIMIT 1
+`
+
+func (q *Queries) GetRoleIDByName(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getRoleIDByName, name)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getRolesByUserID = `-- name: GetRolesByUserID :many
@@ -88,5 +166,25 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
 	var i GetUserByEmailRow
 	err := row.Scan(&i.ID, &i.Email)
+	return i, err
+}
+
+const getUserCredentialsByEmail = `-- name: GetUserCredentialsByEmail :one
+SELECT id, email, password_hash
+FROM users
+WHERE email = ?
+LIMIT 1
+`
+
+type GetUserCredentialsByEmailRow struct {
+	ID           string
+	Email        string
+	PasswordHash sql.NullString
+}
+
+func (q *Queries) GetUserCredentialsByEmail(ctx context.Context, email string) (GetUserCredentialsByEmailRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserCredentialsByEmail, email)
+	var i GetUserCredentialsByEmailRow
+	err := row.Scan(&i.ID, &i.Email, &i.PasswordHash)
 	return i, err
 }
