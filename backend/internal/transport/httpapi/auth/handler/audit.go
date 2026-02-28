@@ -36,14 +36,25 @@ func logAuthEvent(ctx context.Context, logger *slog.Logger, r *http.Request, eve
 		outcome = "unknown"
 	}
 
+	path := ""
+	method := ""
+	remoteIP := ""
+	userAgent := ""
+	if r != nil {
+		path = r.URL.Path
+		method = r.Method
+		remoteIP = r.RemoteAddr
+		userAgent = r.UserAgent()
+	}
+
 	attrs := []any{
 		"category", "auth",
 		"action", action,
 		"outcome", outcome,
-		"path", r.URL.Path,
-		"method", r.Method,
-		"remote_ip", r.RemoteAddr,
-		"user_agent", r.UserAgent(),
+		"path", path,
+		"method", method,
+		"remote_ip", remoteIP,
+		"user_agent", userAgent,
 		"timestamp", time.Now().UTC().Format(time.RFC3339),
 	}
 

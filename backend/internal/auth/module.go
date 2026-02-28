@@ -15,7 +15,7 @@ type Module struct {
 
 func NewModule(dbConn *sql.DB, cfg config.Config, clk platformclock.Clock) Module {
 	authRepo := repo.NewSQLiteRepository(dbConn)
-	authService := authservice.NewService(authRepo, cfg.JWTSecret, clk)
+	authService := authservice.NewService(authRepo, cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, clk)
 
 	return Module{Service: authService}
 }

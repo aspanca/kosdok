@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	authservice "github.com/kosdok/backend/internal/auth/service"
 	"github.com/kosdok/backend/internal/platform/config"
 	"github.com/kosdok/backend/internal/platform/db"
 	"github.com/kosdok/backend/internal/transport/httpapi"
@@ -222,14 +223,18 @@ func TestAuthMeForbiddenWithoutPermission(t *testing.T) {
 	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
 	require.NoError(t, err)
 
-	token := signTestAccessToken(t, jwt.MapClaims{
-		"sub":         "usr_any",
-		"email":       "noaccess@example.com",
-		"roles":       []string{"patient"},
-		"permissions": []string{},
-		"iat":         time.Now().Add(-1 * time.Minute).Unix(),
-		"nbf":         time.Now().Add(-1 * time.Minute).Unix(),
-		"exp":         time.Now().Add(15 * time.Minute).Unix(),
+	token := signTestAccessToken(t, authservice.AccessTokenClaims{
+		Email:       "noaccess@example.com",
+		Roles:       []string{"patient"},
+		Permissions: []string{},
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "kosdok-api",
+			Subject:   "usr_any",
+			Audience:  jwt.ClaimStrings{"kosdok-clients"},
+			IssuedAt:  jwt.NewNumericDate(time.Now().Add(-1 * time.Minute)),
+			NotBefore: jwt.NewNumericDate(time.Now().Add(-1 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+		},
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/auth/me", nil)
@@ -260,6 +265,29 @@ func TestLogoutRequiresAuthentication(t *testing.T) {
 	r.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestLogoutRejectsUntrustedOrigin(t *testing.T) {
+	dbConn := newTestDB(t)
+	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
+	require.NoError(t, err)
+
+	loginResult := registerAndLogin(t, r, "csrf@example.com", "password123")
+	refreshCookie := latestRefreshCookie(loginResult.SetCookies)
+	require.NotEmpty(t, refreshCookie)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/logout", nil)
+	req.Header.Add("Cookie", refreshCookie)
+	req.Header.Set("Authorization", "Bearer "+loginResult.AccessToken)
+	req.Header.Set("Origin", "https://evil.example")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	var response map[string]any
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+	require.Equal(t, "csrf_forbidden", response["code"])
 }
 
 func newTestDB(t *testing.T) *sql.DB {
@@ -353,7 +381,7 @@ func latestRefreshCookie(setCookies []string) string {
 	return ""
 }
 
-func signTestAccessToken(t *testing.T, claims jwt.MapClaims) string {
+func signTestAccessToken(t *testing.T, claims authservice.AccessTokenClaims) string {
 	t.Helper()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString([]byte("dev-change-me"))

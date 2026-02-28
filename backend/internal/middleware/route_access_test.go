@@ -8,8 +8,16 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	authservice "github.com/kosdok/backend/internal/auth/service"
 	"github.com/stretchr/testify/require"
 )
+
+var testJWTValidationConfig = JWTValidationConfig{
+	Secret:   "test-secret",
+	Issuer:   "test-issuer",
+	Audience: "test-audience",
+	Leeway:   5 * time.Second,
+}
 
 func TestEnforceRouteAccess_TemplatePathMatching(t *testing.T) {
 	rules := []RouteAccessRule{
@@ -25,7 +33,7 @@ func TestEnforceRouteAccess_TemplatePathMatching(t *testing.T) {
 	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := JWTClaims("test-secret")(EnforceRouteAccess(rules)(finalHandler))
+	handler := JWTClaims(testJWTValidationConfig)(EnforceRouteAccess(rules)(finalHandler))
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/patients/abc-123", nil)
 	req.Header.Set("Authorization", "Bearer "+signAccessToken(t, "usr_1", "u@example.com", []string{"patient"}, []string{"patient:read"}))
@@ -49,7 +57,7 @@ func TestEnforceRouteAccess_RegexPathMatching(t *testing.T) {
 	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := JWTClaims("test-secret")(EnforceRouteAccess(rules)(finalHandler))
+	handler := JWTClaims(testJWTValidationConfig)(EnforceRouteAccess(rules)(finalHandler))
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/reports/2026/02", nil)
 	req.Header.Set("Authorization", "Bearer "+signAccessToken(t, "usr_2", "u2@example.com", []string{"admin"}, []string{"report:read"}))
@@ -63,7 +71,7 @@ func TestRequireAnyPermission_AllowsOnePermission(t *testing.T) {
 	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := JWTClaims("test-secret")(RequireAnyPermission("patient:write", "patient:read")(finalHandler))
+	handler := JWTClaims(testJWTValidationConfig)(RequireAnyPermission("patient:write", "patient:read")(finalHandler))
 
 	req := httptest.NewRequest(http.MethodGet, "/any", nil)
 	req.Header.Set("Authorization", "Bearer "+signAccessToken(t, "usr_3", "u3@example.com", []string{"patient"}, []string{"patient:read"}))
@@ -77,7 +85,7 @@ func TestRequirePermission_DeniesMissingPermission(t *testing.T) {
 	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := JWTClaims("test-secret")(RequirePermission("patient:write")(finalHandler))
+	handler := JWTClaims(testJWTValidationConfig)(RequirePermission("patient:write")(finalHandler))
 
 	req := httptest.NewRequest(http.MethodGet, "/any", nil)
 	req.Header.Set("Authorization", "Bearer "+signAccessToken(t, "usr_4", "u4@example.com", []string{"patient"}, []string{"patient:read"}))
@@ -96,7 +104,7 @@ func TestRequireAuth_DeniesMissingToken(t *testing.T) {
 	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := JWTClaims("test-secret")(RequireAuth()(finalHandler))
+	handler := JWTClaims(testJWTValidationConfig)(RequireAuth()(finalHandler))
 
 	req := httptest.NewRequest(http.MethodGet, "/any", nil)
 	rec := httptest.NewRecorder()
@@ -109,14 +117,18 @@ func signAccessToken(t *testing.T, userID string, email string, roles []string, 
 	t.Helper()
 
 	now := time.Now().UTC()
-	claims := jwt.MapClaims{
-		"sub":         userID,
-		"email":       email,
-		"roles":       roles,
-		"permissions": permissions,
-		"iat":         now.Unix(),
-		"nbf":         now.Unix(),
-		"exp":         now.Add(15 * time.Minute).Unix(),
+	claims := authservice.AccessTokenClaims{
+		Email:       email,
+		Roles:       roles,
+		Permissions: permissions,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    testJWTValidationConfig.Issuer,
+			Subject:   userID,
+			Audience:  jwt.ClaimStrings{testJWTValidationConfig.Audience},
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(15 * time.Minute)),
+		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

@@ -33,7 +33,6 @@ var (
 const (
 	defaultAccessTokenTTL  = 15 * time.Minute
 	defaultRefreshTokenTTL = 7 * 24 * time.Hour
-	defaultJWTSecret       = "dev-change-me"
 )
 
 type RegisterResult struct {
@@ -49,25 +48,33 @@ type LoginResult struct {
 	RefreshToken string
 }
 
+type AccessTokenClaims struct {
+	Email       string   `json:"email"`
+	Roles       []string `json:"roles"`
+	Permissions []string `json:"permissions"`
+	jwt.RegisteredClaims
+}
+
 type Service struct {
 	repo            repo.Repository
 	jwtSecret       []byte
+	jwtIssuer       string
+	jwtAudience     string
 	clock           platformclock.Clock
 	accessTokenTTL  time.Duration
 	refreshTokenTTL time.Duration
 }
 
-func NewService(r repo.Repository, jwtSecret string, clk platformclock.Clock) *Service {
-	if strings.TrimSpace(jwtSecret) == "" {
-		jwtSecret = defaultJWTSecret
-	}
+func NewService(r repo.Repository, jwtSecret string, jwtIssuer string, jwtAudience string, clk platformclock.Clock) *Service {
 	if clk == nil {
 		clk = platformclock.RealClock{}
 	}
 
 	return &Service{
 		repo:            r,
-		jwtSecret:       []byte(jwtSecret),
+		jwtSecret:       []byte(strings.TrimSpace(jwtSecret)),
+		jwtIssuer:       strings.TrimSpace(jwtIssuer),
+		jwtAudience:     strings.TrimSpace(jwtAudience),
 		clock:           clk,
 		accessTokenTTL:  defaultAccessTokenTTL,
 		refreshTokenTTL: defaultRefreshTokenTTL,
@@ -268,14 +275,19 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 
 func (s *Service) signAccessToken(subject domain.AuthSubject, now time.Time) (string, time.Time, error) {
 	expiresAt := now.Add(s.accessTokenTTL)
-	claims := jwt.MapClaims{
-		"sub":         subject.UserID,
-		"email":       subject.Email,
-		"roles":       subject.Roles,
-		"permissions": subject.Permissions,
-		"iat":         now.Unix(),
-		"nbf":         now.Unix(),
-		"exp":         expiresAt.Unix(),
+	claims := AccessTokenClaims{
+		Email:       subject.Email,
+		Roles:       subject.Roles,
+		Permissions: subject.Permissions,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    s.jwtIssuer,
+			Subject:   subject.UserID,
+			Audience:  jwt.ClaimStrings{s.jwtAudience},
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			ID:        "at_" + uuid.NewString(),
+		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

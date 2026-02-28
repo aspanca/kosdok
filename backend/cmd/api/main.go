@@ -16,6 +16,9 @@ import (
 
 func main() {
 	cfg := config.Load()
+	if err := cfg.ValidateForAPI(); err != nil {
+		log.Fatalf("invalid configuration: %v", err)
+	}
 
 	dbConn, err := db.NewSQLiteWithOptions(db.SQLiteOptions{
 		Path:            cfg.DBPath,

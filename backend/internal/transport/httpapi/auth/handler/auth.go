@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -12,7 +13,6 @@ import (
 	"github.com/kosdok/backend/internal/platform/config"
 	"github.com/kosdok/backend/internal/transport/httpapi/auth/mapper"
 	authapi "github.com/kosdok/backend/internal/transport/httpapi/auth/openapi"
-	"github.com/kosdok/backend/internal/transport/httpapi/respond"
 )
 
 type AuthHandler struct {
@@ -29,117 +29,162 @@ func NewAuthHandler(cfg config.Config, service *authservice.Service, auditLogger
 	return &AuthHandler{config: cfg, service: service, auditLogger: auditLogger}
 }
 
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var payload authapi.RegisterRequest
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&payload); err != nil {
-		logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "register", Outcome: "failure", Reason: "invalid_json"})
-		writeMalformedJSONError(w)
-		return
+func (h *AuthHandler) Register(ctx context.Context, request authapi.RegisterRequestObject) (authapi.RegisterResponseObject, error) {
+	req := requestFromContext(ctx)
+	if request.Body == nil {
+		logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "register", Outcome: "failure", Reason: "invalid_request"})
+		return authapi.Register400JSONResponse{Code: "invalid_request", Message: "Request body is required."}, nil
 	}
 
-	result, err := h.service.Register(r.Context(), string(payload.Email), payload.Password)
+	result, err := h.service.Register(ctx, string(request.Body.Email), request.Body.Password)
 	if err != nil {
-		logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "register", Outcome: "failure", Reason: classifyAuthError(err), Email: string(payload.Email)})
-		writeRegisterError(w, err)
-		return
+		logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "register", Outcome: "failure", Reason: classifyAuthError(err), Email: string(request.Body.Email)})
+		if response, ok := mapRegisterError(err); ok {
+			return response, nil
+		}
+		return nil, err
 	}
 
-	logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "register", Outcome: "success", Email: result.Email, UserID: result.UserID})
-	respond.JSON(w, http.StatusCreated, mapper.ToRegisterResponse(result))
+	logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "register", Outcome: "success", Email: result.Email, UserID: result.UserID})
+	return authapi.Register201JSONResponse(mapper.ToRegisterResponse(result)), nil
 }
 
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var payload authapi.LoginRequest
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&payload); err != nil {
-		logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "login", Outcome: "failure", Reason: "invalid_json"})
-		writeMalformedJSONError(w)
-		return
+func (h *AuthHandler) Login(ctx context.Context, request authapi.LoginRequestObject) (authapi.LoginResponseObject, error) {
+	req := requestFromContext(ctx)
+	if request.Body == nil {
+		logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "login", Outcome: "failure", Reason: "invalid_request"})
+		return authapi.Login400JSONResponse{Code: "invalid_request", Message: "Request body is required."}, nil
 	}
 
-	result, err := h.service.Login(r.Context(), string(payload.Email), payload.Password)
+	result, err := h.service.Login(ctx, string(request.Body.Email), request.Body.Password)
 	if err != nil {
-		logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "login", Outcome: "failure", Reason: classifyAuthError(err), Email: string(payload.Email)})
-		writeLoginError(w, err)
-		return
+		logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "login", Outcome: "failure", Reason: classifyAuthError(err), Email: string(request.Body.Email)})
+		if response, ok := mapLoginError(err); ok {
+			return response, nil
+		}
+		return nil, err
 	}
 
-	setRefreshCookie(w, h.config, result.RefreshToken)
-	logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "login", Outcome: "success", Email: string(payload.Email)})
-	respond.JSON(w, http.StatusOK, mapper.ToLoginResponse(result))
+	logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "login", Outcome: "success", Email: string(request.Body.Email)})
+	return loginResponseWithCookie{payload: mapper.ToLoginResponse(result), cookie: refreshCookie(h.config, result.RefreshToken)}, nil
 }
 
-func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	refreshToken := getRefreshCookieToken(r)
-	result, err := h.service.Refresh(r.Context(), refreshToken)
-	if err != nil {
-		logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "refresh", Outcome: "failure", Reason: classifyAuthError(err)})
-		writeRefreshError(w, err)
-		return
+func (h *AuthHandler) Refresh(ctx context.Context, _ authapi.RefreshRequestObject) (authapi.RefreshResponseObject, error) {
+	req := requestFromContext(ctx)
+	refreshToken := ""
+	if req != nil {
+		refreshToken = getRefreshCookieToken(req)
 	}
 
-	setRefreshCookie(w, h.config, result.RefreshToken)
-	logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "refresh", Outcome: "success"})
-	respond.JSON(w, http.StatusOK, mapper.ToLoginResponse(result))
+	result, err := h.service.Refresh(ctx, refreshToken)
+	if err != nil {
+		logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "refresh", Outcome: "failure", Reason: classifyAuthError(err)})
+		if response, ok := mapRefreshError(err); ok {
+			return response, nil
+		}
+		return nil, err
+	}
+
+	logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "refresh", Outcome: "success"})
+	return refreshResponseWithCookie{payload: mapper.ToLoginResponse(result), cookie: refreshCookie(h.config, result.RefreshToken)}, nil
 }
 
-func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	refreshToken := getRefreshCookieToken(r)
-	if err := h.service.Logout(r.Context(), refreshToken); err != nil {
-		logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "logout", Outcome: "failure", Reason: classifyAuthError(err)})
-		respond.JSON(w, http.StatusInternalServerError, mapper.ToErrorResponse("internal_error", "Internal server error."))
-		return
+func (h *AuthHandler) Logout(ctx context.Context, _ authapi.LogoutRequestObject) (authapi.LogoutResponseObject, error) {
+	req := requestFromContext(ctx)
+	refreshToken := ""
+	if req != nil {
+		refreshToken = getRefreshCookieToken(req)
 	}
 
-	clearRefreshCookie(w, h.config)
-	claims, ok := transportmiddleware.ClaimsFromContext(r.Context())
+	if err := h.service.Logout(ctx, refreshToken); err != nil {
+		logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "logout", Outcome: "failure", Reason: classifyAuthError(err)})
+		return nil, err
+	}
+
+	claims, ok := transportmiddleware.ClaimsFromContext(ctx)
 	if ok {
-		logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "logout", Outcome: "success", UserID: claims.UserID, Email: claims.Email})
+		logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "logout", Outcome: "success", UserID: claims.UserID, Email: claims.Email})
 	} else {
-		logAuthEvent(r.Context(), h.auditLogger, r, AuthAuditEvent{Action: "logout", Outcome: "success"})
+		logAuthEvent(ctx, h.auditLogger, req, AuthAuditEvent{Action: "logout", Outcome: "success"})
 	}
-	w.WriteHeader(http.StatusNoContent)
+
+	return logoutResponseWithCookie{cookie: clearRefreshCookie(h.config)}, nil
 }
 
-func (h *AuthHandler) GetAuthMe(w http.ResponseWriter, r *http.Request) {
-	authErr := transportmiddleware.AuthErrorFromContext(r.Context())
+func (h *AuthHandler) GetAuthMe(ctx context.Context, _ authapi.GetAuthMeRequestObject) (authapi.GetAuthMeResponseObject, error) {
+	authErr := transportmiddleware.AuthErrorFromContext(ctx)
 	if authErr != nil {
 		if errors.Is(authErr, transportmiddleware.ErrMissingAuthorizationHeader) ||
 			errors.Is(authErr, transportmiddleware.ErrInvalidAuthorizationHeader) ||
 			errors.Is(authErr, transportmiddleware.ErrInvalidAccessToken) {
-			respond.JSON(w, http.StatusUnauthorized, mapper.ToErrorResponse("unauthorized", "Access token is missing or invalid."))
-			return
+			return authapi.GetAuthMe401JSONResponse{Code: "unauthorized", Message: "Access token is missing or invalid."}, nil
 		}
-
-		respond.JSON(w, http.StatusUnauthorized, mapper.ToErrorResponse("unauthorized", "Access token is missing or invalid."))
-		return
+		return authapi.GetAuthMe401JSONResponse{Code: "unauthorized", Message: "Access token is missing or invalid."}, nil
 	}
 
-	claims, ok := transportmiddleware.ClaimsFromContext(r.Context())
+	claims, ok := transportmiddleware.ClaimsFromContext(ctx)
 	if !ok {
-		respond.JSON(w, http.StatusUnauthorized, mapper.ToErrorResponse("unauthorized", "Access token is missing or invalid."))
-		return
+		return authapi.GetAuthMe401JSONResponse{Code: "unauthorized", Message: "Access token is missing or invalid."}, nil
 	}
 
-	subject, err := h.service.GetMeByUserID(r.Context(), claims.UserID)
+	subject, err := h.service.GetMeByUserID(ctx, claims.UserID)
 	if err != nil {
-		writeAuthMeError(w, err)
-		return
+		if response, ok := mapAuthMeError(err); ok {
+			return response, nil
+		}
+		return nil, err
 	}
 
-	respond.JSON(w, http.StatusOK, mapper.ToAuthMeResponse(subject))
+	return authapi.GetAuthMe200JSONResponse(mapper.ToAuthMeResponse(subject)), nil
 }
 
-func setRefreshCookie(w http.ResponseWriter, cfg config.Config, token string) {
+type loginResponseWithCookie struct {
+	payload authapi.LoginResponse
+	cookie  *http.Cookie
+}
+
+func (response loginResponseWithCookie) VisitLoginResponse(w http.ResponseWriter) error {
+	if response.cookie != nil {
+		http.SetCookie(w, response.cookie)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	return json.NewEncoder(w).Encode(response.payload)
+}
+
+type refreshResponseWithCookie struct {
+	payload authapi.LoginResponse
+	cookie  *http.Cookie
+}
+
+func (response refreshResponseWithCookie) VisitRefreshResponse(w http.ResponseWriter) error {
+	if response.cookie != nil {
+		http.SetCookie(w, response.cookie)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	return json.NewEncoder(w).Encode(response.payload)
+}
+
+type logoutResponseWithCookie struct {
+	cookie *http.Cookie
+}
+
+func (response logoutResponseWithCookie) VisitLogoutResponse(w http.ResponseWriter) error {
+	if response.cookie != nil {
+		http.SetCookie(w, response.cookie)
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func refreshCookie(cfg config.Config, token string) *http.Cookie {
 	token = strings.TrimSpace(token)
 	if token == "" {
-		return
+		return nil
 	}
 
-	http.SetCookie(w, &http.Cookie{
+	return &http.Cookie{
 		Name:     "refresh_token",
 		Value:    token,
 		Path:     "/",
@@ -147,11 +192,11 @@ func setRefreshCookie(w http.ResponseWriter, cfg config.Config, token string) {
 		Secure:   cfg.Env == "production",
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   7 * 24 * 60 * 60,
-	})
+	}
 }
 
-func clearRefreshCookie(w http.ResponseWriter, cfg config.Config) {
-	http.SetCookie(w, &http.Cookie{
+func clearRefreshCookie(cfg config.Config) *http.Cookie {
+	return &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
 		Path:     "/",
@@ -159,10 +204,13 @@ func clearRefreshCookie(w http.ResponseWriter, cfg config.Config) {
 		Secure:   cfg.Env == "production",
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
-	})
+	}
 }
 
 func getRefreshCookieToken(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
 		return ""

@@ -5,8 +5,10 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	authservice "github.com/kosdok/backend/internal/auth/service"
 )
 
 var (
@@ -14,6 +16,13 @@ var (
 	ErrInvalidAuthorizationHeader = errors.New("authorization header is invalid")
 	ErrInvalidAccessToken         = errors.New("access token is invalid")
 )
+
+type JWTValidationConfig struct {
+	Secret   string
+	Issuer   string
+	Audience string
+	Leeway   time.Duration
+}
 
 type AuthClaims struct {
 	UserID      string
@@ -27,13 +36,15 @@ type contextKey string
 const (
 	authClaimsContextKey contextKey = "auth_claims"
 	authErrorContextKey  contextKey = "auth_error"
-	defaultJWTSecret                = "dev-change-me"
 )
 
-func JWTClaims(secret string) func(nextHandler http.Handler) http.Handler {
-	secret = strings.TrimSpace(secret)
-	if secret == "" {
-		secret = defaultJWTSecret
+func JWTClaims(cfg JWTValidationConfig) func(nextHandler http.Handler) http.Handler {
+	secret := strings.TrimSpace(cfg.Secret)
+	issuer := strings.TrimSpace(cfg.Issuer)
+	audience := strings.TrimSpace(cfg.Audience)
+	leeway := cfg.Leeway
+	if leeway < 0 {
+		leeway = 0
 	}
 
 	return func(nextHandler http.Handler) http.Handler {
@@ -50,14 +61,25 @@ func JWTClaims(secret string) func(nextHandler http.Handler) http.Handler {
 				return
 			}
 
+			if secret == "" || issuer == "" || audience == "" {
+				nextHandler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), authErrorContextKey, ErrInvalidAccessToken)))
+				return
+			}
+
 			rawToken := strings.TrimSpace(parts[1])
-			claims := jwt.MapClaims{}
-			token, err := jwt.ParseWithClaims(rawToken, claims, func(token *jwt.Token) (interface{}, error) {
-				if token.Method != jwt.SigningMethodHS256 {
-					return nil, ErrInvalidAccessToken
-				}
-				return []byte(secret), nil
-			})
+			claims := &authservice.AccessTokenClaims{}
+			token, err := jwt.ParseWithClaims(
+				rawToken,
+				claims,
+				func(token *jwt.Token) (any, error) {
+					return []byte(secret), nil
+				},
+				jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+				jwt.WithIssuer(issuer),
+				jwt.WithAudience(audience),
+				jwt.WithExpirationRequired(),
+				jwt.WithLeeway(leeway),
+			)
 			if err != nil || token == nil || !token.Valid {
 				nextHandler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), authErrorContextKey, ErrInvalidAccessToken)))
 				return
@@ -90,53 +112,25 @@ func AuthErrorFromContext(ctx context.Context) error {
 	return err
 }
 
-func mapJWTClaims(claims jwt.MapClaims) (AuthClaims, error) {
-	userID, ok := claims["sub"].(string)
-	if !ok || strings.TrimSpace(userID) == "" {
+func mapJWTClaims(claims *authservice.AccessTokenClaims) (AuthClaims, error) {
+	if claims == nil {
 		return AuthClaims{}, ErrInvalidAccessToken
 	}
 
-	email, ok := claims["email"].(string)
-	if !ok || strings.TrimSpace(email) == "" {
+	userID := strings.TrimSpace(claims.Subject)
+	if userID == "" {
 		return AuthClaims{}, ErrInvalidAccessToken
 	}
 
-	roles, err := toStringSlice(claims["roles"])
-	if err != nil {
-		return AuthClaims{}, ErrInvalidAccessToken
-	}
-
-	permissions, err := toStringSlice(claims["permissions"])
-	if err != nil {
+	email := strings.TrimSpace(claims.Email)
+	if email == "" {
 		return AuthClaims{}, ErrInvalidAccessToken
 	}
 
 	return AuthClaims{
 		UserID:      userID,
 		Email:       email,
-		Roles:       roles,
-		Permissions: permissions,
+		Roles:       claims.Roles,
+		Permissions: claims.Permissions,
 	}, nil
-}
-
-func toStringSlice(value any) ([]string, error) {
-	if value == nil {
-		return nil, nil
-	}
-
-	items, ok := value.([]any)
-	if !ok {
-		return nil, ErrInvalidAccessToken
-	}
-
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		asString, isString := item.(string)
-		if !isString {
-			return nil, ErrInvalidAccessToken
-		}
-		out = append(out, asString)
-	}
-
-	return out, nil
 }

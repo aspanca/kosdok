@@ -66,7 +66,7 @@ func (s staticClock) Now() time.Time {
 }
 
 func TestGetMeValidatesEmail(t *testing.T) {
-	svc := NewService(fakeRepo{}, "test-secret", staticClock{now: time.Unix(0, 0).UTC()})
+	svc := NewService(fakeRepo{}, "test-secret", "issuer", "audience", staticClock{now: time.Unix(0, 0).UTC()})
 
 	_, err := svc.GetMe(context.Background(), "   ")
 	require.ErrorIs(t, err, ErrEmailRequired)
@@ -75,7 +75,7 @@ func TestGetMeValidatesEmail(t *testing.T) {
 func TestGetMeNormalizesEmail(t *testing.T) {
 	var usedEmail string
 	expected := domain.AuthSubject{UserID: "u1", Email: "me@example.com"}
-	svc := NewService(fakeRepo{subject: expected, email: &usedEmail}, "test-secret", staticClock{now: time.Unix(0, 0).UTC()})
+	svc := NewService(fakeRepo{subject: expected, email: &usedEmail}, "test-secret", "issuer", "audience", staticClock{now: time.Unix(0, 0).UTC()})
 
 	got, err := svc.GetMe(context.Background(), " ME@EXAMPLE.COM ")
 	require.NoError(t, err)
@@ -84,14 +84,14 @@ func TestGetMeNormalizesEmail(t *testing.T) {
 }
 
 func TestRegisterValidatesPasswordLength(t *testing.T) {
-	svc := NewService(fakeRepo{}, "test-secret", staticClock{now: time.Unix(0, 0).UTC()})
+	svc := NewService(fakeRepo{}, "test-secret", "issuer", "audience", staticClock{now: time.Unix(0, 0).UTC()})
 
 	_, err := svc.Register(context.Background(), "user@example.com", "short")
 	require.ErrorIs(t, err, ErrPasswordTooShort)
 }
 
 func TestRefreshRequiresToken(t *testing.T) {
-	svc := NewService(fakeRepo{}, "test-secret", staticClock{now: time.Unix(0, 0).UTC()})
+	svc := NewService(fakeRepo{}, "test-secret", "issuer", "audience", staticClock{now: time.Unix(0, 0).UTC()})
 
 	_, err := svc.Refresh(context.Background(), "")
 	require.ErrorIs(t, err, ErrRefreshTokenRequired)
