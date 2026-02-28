@@ -17,7 +17,13 @@ import (
 func main() {
 	cfg := config.Load()
 
-	dbConn, err := db.NewSQLite(cfg.DBPath)
+	dbConn, err := db.NewSQLiteWithOptions(db.SQLiteOptions{
+		Path:            cfg.DBPath,
+		JournalMode:     cfg.SQLiteJournalMode,
+		SynchronousMode: cfg.SQLiteSynchronous,
+		BusyTimeoutMS:   cfg.SQLiteBusyTimeoutMS,
+		ForeignKeysOn:   cfg.SQLiteForeignKeysOn,
+	})
 	if err != nil {
 		log.Fatalf("open sqlite: %v", err)
 	}
