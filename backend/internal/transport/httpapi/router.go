@@ -14,6 +14,7 @@ import (
 	platformlog "github.com/kosdok/backend/internal/platform/log"
 	"github.com/kosdok/backend/internal/transport/httpapi/authapi"
 	"github.com/kosdok/backend/internal/transport/httpapi/handler"
+	"github.com/kosdok/backend/internal/transport/httpapi/respond"
 )
 
 const apiV1BasePath = "/v1"
@@ -28,8 +29,7 @@ func NewRouter(cfg config.Config, dbConn *sql.DB) (http.Handler, error) {
 	r.Use(middleware.Logging(logger))
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
+		respond.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
 	authModule := auth.NewModule(dbConn)
@@ -37,6 +37,9 @@ func NewRouter(cfg config.Config, dbConn *sql.DB) (http.Handler, error) {
 	authapi.HandlerWithOptions(authHandler, authapi.ChiServerOptions{
 		BaseRouter: r,
 		BaseURL:    apiV1BasePath,
+		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
+			respond.Error(w, http.StatusBadRequest, "invalid_request", "Invalid request parameters.")
+		},
 	})
 
 	swagger, err := authapi.GetSwagger()

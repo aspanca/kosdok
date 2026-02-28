@@ -101,6 +101,25 @@ func TestAuthMeReturnsDBData(t *testing.T) {
 	require.Contains(t, permissions, "auth:me:read")
 }
 
+func TestAuthMeMissingHeaderReturnsConsistentError(t *testing.T) {
+	dbConn := newTestDB(t)
+	r, err := httpapi.NewRouter(config.Config{Env: "development"}, dbConn)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/auth/me", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+	var response map[string]any
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+	require.Equal(t, "invalid_request", response["code"])
+	require.NotEmpty(t, response["message"])
+}
+
 func newTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 

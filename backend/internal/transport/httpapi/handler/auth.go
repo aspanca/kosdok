@@ -11,6 +11,7 @@ import (
 	"github.com/kosdok/backend/internal/platform/config"
 	"github.com/kosdok/backend/internal/transport/httpapi/authapi"
 	"github.com/kosdok/backend/internal/transport/httpapi/mapper"
+	"github.com/kosdok/backend/internal/transport/httpapi/respond"
 )
 
 type AuthHandler struct {
@@ -27,20 +28,20 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&payload); err != nil {
-		writeJSON(w, http.StatusBadRequest, mapper.ToErrorResponse("invalid_request", "Malformed JSON request body."))
+		respond.JSON(w, http.StatusBadRequest, mapper.ToErrorResponse("invalid_request", "Malformed JSON request body."))
 		return
 	}
 
 	email := strings.TrimSpace(string(payload.Email))
 	password := strings.TrimSpace(payload.Password)
 	if email == "" || password == "" {
-		writeJSON(w, http.StatusBadRequest, mapper.ToErrorResponse("invalid_request", "Email and password are required."))
+		respond.JSON(w, http.StatusBadRequest, mapper.ToErrorResponse("invalid_request", "Email and password are required."))
 		return
 	}
 
 	setRefreshCookie(w, h.config, "dummy-refresh-token")
 
-	writeJSON(w, http.StatusOK, authapi.LoginResponse{
+	respond.JSON(w, http.StatusOK, authapi.LoginResponse{
 		AccessToken: "dummy-access-token",
 		TokenType:   "Bearer",
 		ExpiresIn:   900,
@@ -52,16 +53,16 @@ func (h *AuthHandler) GetAuthMe(w http.ResponseWriter, r *http.Request, params a
 	if err != nil {
 		switch {
 		case errors.Is(err, authservice.ErrEmailRequired):
-			writeJSON(w, http.StatusBadRequest, mapper.ToErrorResponse("invalid_request", "Email header is required."))
+			respond.JSON(w, http.StatusBadRequest, mapper.ToErrorResponse("invalid_request", "Email header is required."))
 		case errors.Is(err, domain.ErrUserNotFound):
-			writeJSON(w, http.StatusNotFound, mapper.ToErrorResponse("not_found", "User not found."))
+			respond.JSON(w, http.StatusNotFound, mapper.ToErrorResponse("not_found", "User not found."))
 		default:
-			writeJSON(w, http.StatusInternalServerError, mapper.ToErrorResponse("internal_error", "Internal server error."))
+			respond.JSON(w, http.StatusInternalServerError, mapper.ToErrorResponse("internal_error", "Internal server error."))
 		}
 		return
 	}
 
-	writeJSON(w, http.StatusOK, mapper.ToAuthMeResponse(subject))
+	respond.JSON(w, http.StatusOK, mapper.ToAuthMeResponse(subject))
 }
 
 func setRefreshCookie(w http.ResponseWriter, cfg config.Config, token string) {
@@ -74,10 +75,4 @@ func setRefreshCookie(w http.ResponseWriter, cfg config.Config, token string) {
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   7 * 24 * 60 * 60,
 	})
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }
