@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ReactComponent as LogoSvg } from "./assets/logo.svg";
-import { useAuth } from "../../context/auth-context";
+import { useAuth, getUserDisplayName, getUserInitials, getUserPicture } from "../../context/auth-context";
 
 export const AppBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -42,11 +42,15 @@ export const AppBar = () => {
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-100 transition-colors"
                   >
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-[#6AA8FF] flex items-center justify-center text-white text-sm font-bold">
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
+                    <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-primary to-[#6AA8FF] flex items-center justify-center text-white text-sm font-bold">
+                      {user && getUserPicture(user) ? (
+                        <img src={getUserPicture(user)} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        user ? getUserInitials(user) : ""
+                      )}
                     </div>
                     <span className="text-[15px] font-medium text-gray-700">
-                      {user?.firstName}
+                      {user ? getUserDisplayName(user) : ""}
                     </span>
                     <svg
                       className={`w-4 h-4 text-gray-500 transition-transform ${isUserMenuOpen ? "rotate-180" : ""}`}
@@ -63,7 +67,7 @@ export const AppBar = () => {
                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
                       <div className="px-4 py-3 border-b border-gray-100">
                         <p className="text-sm font-semibold text-gray-700">
-                          {user?.firstName} {user?.lastName}
+                          {user ? getUserDisplayName(user) : ""}
                         </p>
                         <p className="text-xs text-gray-500">{user?.email}</p>
                       </div>
@@ -126,6 +130,7 @@ export const AppBar = () => {
                 <>
                   <Link
                     to="/signin"
+                    search={{ mode: "login" }}
                     className="px-4 py-2.5 text-[15px] font-semibold text-primary hover:bg-primary/5 rounded-full transition-all duration-200"
                   >
                     Kyçu
@@ -190,12 +195,16 @@ export const AppBar = () => {
             {isLoggedIn ? (
               <>
                 <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl mb-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[#6AA8FF] flex items-center justify-center text-white text-sm font-bold">
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-primary to-[#6AA8FF] flex items-center justify-center text-white text-sm font-bold">
+                    {user && getUserPicture(user) ? (
+                      <img src={getUserPicture(user)} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      user ? getUserInitials(user) : ""
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-700">
-                      {user?.firstName} {user?.lastName}
+                      {user ? getUserDisplayName(user) : ""}
                     </p>
                     <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
@@ -235,6 +244,7 @@ export const AppBar = () => {
               <>
                 <Link
                   to="/signin"
+                  search={{ mode: "login" }}
                   onClick={() => setIsMenuOpen(false)}
                   className="block w-full py-3 text-center text-base font-semibold text-primary border-2 border-primary hover:bg-primary/5 rounded-xl transition-colors"
                 >

@@ -14,7 +14,7 @@ export const Search = () => {
             <span className="text-primary">e nevojshem</span>
           </h1>
           <p className="mt-4 text-gray-500 text-base sm:text-lg max-w-md mx-auto lg:mx-0">
-            Platforma më e madhe për gjetjen e mjekëve, klinikave dhe spitaleve në Kosovë
+            Platforma më e madhe për gjetjen e mjekëve, klinikave, spitaleve dhe laboratorëve në Kosovë
           </p>
 
           {/* Trust Badge */}

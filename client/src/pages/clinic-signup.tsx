@@ -3,12 +3,15 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../context/auth-context";
-import { Building2, Mail, Lock, Phone, MapPin, Eye, EyeOff, Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Building2, Mail, Lock, Phone, MapPin, Check } from "lucide-react";
+import { PasswordInput } from "../components/ui/password-input";
+import { formInputClass } from "../lib/form-styles";
 
 export const ClinicSignupPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     clinicName: "",
@@ -40,7 +43,8 @@ export const ClinicSignupPage = () => {
     if (!validate()) return;
 
     setIsLoading(true);
-    // Simulate API call
+    setErrors({});
+    // Simulate API call - clinic signup not implemented yet
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     login({
@@ -134,38 +138,27 @@ export const ClinicSignupPage = () => {
             {/* Password */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1.5">
-                <Lock className="w-4 h-4 inline mr-1" /> Fjalëkalimi
+                <Lock className="w-4 h-4 inline mr-1" /> {t("auth.signin.password")}
               </label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Minimum 8 karaktere"
-                  className={`h-11 pr-10 ${errors.password ? "border-status-error" : ""}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder={t("auth.signin.passwordMinPlaceholder")}
+                className={`${formInputClass} ${errors.password ? "border-status-error" : ""}`}
+              />
               {errors.password && <p className="text-xs text-status-error mt-1">{errors.password}</p>}
             </div>
 
             {/* Confirm Password */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1.5">
-                Konfirmo Fjalëkalimin
+                {t("auth.signin.confirmPassword")}
               </label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                placeholder="Përsërit fjalëkalimin"
-                className={`h-11 ${errors.confirmPassword ? "border-status-error" : ""}`}
+                placeholder={t("auth.clinicSignup.confirmPasswordPlaceholder")}
+                className={`${formInputClass} ${errors.confirmPassword ? "border-status-error" : ""}`}
               />
               {errors.confirmPassword && <p className="text-xs text-status-error mt-1">{errors.confirmPassword}</p>}
             </div>

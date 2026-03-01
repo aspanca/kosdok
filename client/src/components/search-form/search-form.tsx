@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import {
@@ -10,6 +11,7 @@ import {
 } from "../ui/select";
 
 export const SearchForm = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -23,8 +25,8 @@ export const SearchForm = () => {
         {/* Search Input */}
         <div className="flex-1">
           <Input
-            placeholder="Kerko mjekun, klinikën..."
-            aria-label="Kerko"
+            placeholder={t("searchForm.placeholder")}
+            aria-label={t("searchForm.submit")}
             className="h-12 text-base"
           />
         </div>
@@ -33,7 +35,7 @@ export const SearchForm = () => {
         <div className="sm:w-48">
           <Select>
             <SelectTrigger className="h-12">
-              <SelectValue placeholder="Kategoria" />
+              <SelectValue placeholder={t("searchForm.categoryPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="cardiology">Kardiologji</SelectItem>
@@ -59,7 +61,7 @@ export const SearchForm = () => {
         <div className="sm:w-44">
           <Select>
             <SelectTrigger className="h-12">
-              <SelectValue placeholder="Lokacioni" />
+              <SelectValue placeholder={t("searchForm.locationPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="prishtina">Prishtina</SelectItem>
@@ -105,7 +107,7 @@ export const SearchForm = () => {
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
           </svg>
-          Kerko
+          {t("searchForm.submit")}
         </Button>
       </div>
     </form>

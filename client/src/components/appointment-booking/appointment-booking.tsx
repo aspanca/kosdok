@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useAuth } from "../../context/auth-context";
+import { useAuth, isPatientUser } from "../../context/auth-context";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Calendar, Clock, ChevronRight, X, Check, Shield } from "lucide-react";
@@ -58,8 +58,8 @@ export const AppointmentBooking = ({
       time: "",
       reason: "",
       notes: "",
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
+      firstName: isPatientUser(user) ? user.firstName : "",
+      lastName: isPatientUser(user) ? user.lastName : "",
       phone: "",
       email: user?.email || "",
     });
@@ -116,6 +116,7 @@ export const AppointmentBooking = ({
         ) : (
           <Link
             to="/signin"
+            search={{ mode: "login" }}
             className="w-full h-10 sm:h-11 bg-white hover:bg-white/95 text-primary rounded-lg text-[13px] sm:text-[14px] font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20"
           >
             Kyçu për të rezervuar
@@ -284,11 +285,11 @@ export const AppointmentBooking = ({
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       <div>
                         <label className="block text-[10px] sm:text-[11px] text-text-muted mb-1">Emri</label>
-                        <Input value={formData.firstName || user?.firstName || ""} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="h-9 sm:h-10 text-[12px] sm:text-[13px] rounded-lg border-border-light" required />
+                        <Input value={formData.firstName || (isPatientUser(user) ? user.firstName : "") || ""} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="h-9 sm:h-10 text-[12px] sm:text-[13px] rounded-lg border-border-light" required />
                       </div>
                       <div>
                         <label className="block text-[10px] sm:text-[11px] text-text-muted mb-1">Mbiemri</label>
-                        <Input value={formData.lastName || user?.lastName || ""} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="h-9 sm:h-10 text-[12px] sm:text-[13px] rounded-lg border-border-light" required />
+                        <Input value={formData.lastName || (isPatientUser(user) ? user.lastName : "") || ""} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="h-9 sm:h-10 text-[12px] sm:text-[13px] rounded-lg border-border-light" required />
                       </div>
                     </div>
                     <div>

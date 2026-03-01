@@ -243,6 +243,7 @@ export const AdvancedSearchPage = () => {
                     <SelectItem value="hospital">Spital</SelectItem>
                     <SelectItem value="clinic">Klinikë</SelectItem>
                     <SelectItem value="doctor">Doktor</SelectItem>
+                    <SelectItem value="lab">Laborator</SelectItem>
                     <SelectItem value="pharmacy">Barnatore</SelectItem>
                   </SelectContent>
                 </Select>
@@ -487,7 +488,7 @@ export const AdvancedSearchPage = () => {
               {mockResults.map((result) => (
                 <Link
                   key={result.id}
-                  to="/hospital/1"
+                  to="/hospital"
                   className="bg-white border border-[#e5e7eb] rounded-xl p-4 hover:shadow-lg hover:border-primary/30 transition-all duration-200 group"
                 >
                   <div className="flex items-start gap-3">

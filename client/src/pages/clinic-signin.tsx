@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { PasswordInput } from "../components/ui/password-input";
 import { useAuth } from "../context/auth-context";
-import { Building2, Mail, Lock, Eye, EyeOff, AlertCircle, Check } from "lucide-react";
+import { Building2, Mail, Lock, AlertCircle, Check } from "lucide-react";
+import { formInputClass } from "../lib/form-styles";
 
 // Demo clinic credentials
 const DEMO_CLINIC = {
@@ -21,9 +24,9 @@ const DEMO_CLINIC = {
 };
 
 export const ClinicSigninPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
@@ -37,7 +40,7 @@ export const ClinicSigninPage = () => {
     setError("");
 
     if (!formData.email || !formData.password) {
-      setError("Plotëso të gjitha fushat");
+      setError(t("auth.clinicSignin.errorFillFields"));
       return;
     }
 
@@ -50,7 +53,7 @@ export const ClinicSigninPage = () => {
       login(DEMO_CLINIC.data);
       navigate({ to: "/clinic-dashboard" });
     } else {
-      setError("Email ose fjalëkalim i gabuar");
+      setError(t("auth.clinicSignin.errorWrongCredentials"));
       setIsLoading(false);
     }
   };
@@ -139,32 +142,22 @@ export const ClinicSigninPage = () => {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="info@klinika.com"
-                className="h-11"
+                placeholder={t("auth.clinicSignin.emailPlaceholder")}
+                className={formInputClass}
               />
             </div>
 
             {/* Password */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1.5">
-                <Lock className="w-4 h-4 inline mr-1" /> Fjalëkalimi
+                <Lock className="w-4 h-4 inline mr-1" /> {t("auth.signin.password")}
               </label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Shkruaj fjalëkalimin"
-                  className="h-11 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder={t("auth.clinicSignin.passwordPlaceholder")}
+                className={formInputClass}
+              />
             </div>
 
             {/* Remember Me & Forgot */}
@@ -178,7 +171,7 @@ export const ClinicSigninPage = () => {
                 />
                 <span className="text-sm text-text-secondary">Më mbaj mend</span>
               </label>
-              <Link to="/signin" className="text-sm text-primary hover:underline">
+              <Link to="/signin" search={{ mode: "login" }} className="text-sm text-primary hover:underline">
                 Harrove fjalëkalimin?
               </Link>
             </div>
@@ -200,7 +193,7 @@ export const ClinicSigninPage = () => {
           {/* Patient Link */}
           <div className="mt-8 pt-6 border-t border-border text-center">
             <p className="text-sm text-text-muted mb-3">Je pacient?</p>
-            <Link to="/signin" className="text-primary font-medium hover:underline text-sm">
+            <Link to="/signin" search={{ mode: "login" }} className="text-primary font-medium hover:underline text-sm">
               Kyçu si Pacient →
             </Link>
           </div>

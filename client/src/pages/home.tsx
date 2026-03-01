@@ -130,6 +130,44 @@ export const HomePage = () => {
         ]}
       />
       <HomePageItems
+        title="Disa nga Laboratorët"
+        link={{ url: "/", label: "Te gjitha laboratorët" }}
+        items={[
+          {
+            img: "https://cdn-icons-png.flaticon.com/512/3143/3143636.png",
+            name: "Laboratori Rezonanca",
+            location: "Prishtinë",
+            schedule: {
+              open: true,
+            },
+          },
+          {
+            img: "https://cdn-icons-png.flaticon.com/512/3143/3143636.png",
+            name: "Laboratori Vita",
+            location: "Tiranë",
+            schedule: {
+              open: true,
+            },
+          },
+          {
+            img: "https://cdn-icons-png.flaticon.com/512/3143/3143636.png",
+            name: "Laboratori Diagnostik",
+            location: "Prizren",
+            schedule: {
+              open: false,
+            },
+          },
+          {
+            img: "https://cdn-icons-png.flaticon.com/512/3143/3143636.png",
+            name: "Laboratori Analiza",
+            location: "Gjakovë",
+            schedule: {
+              open: true,
+            },
+          },
+        ]}
+      />
+      <HomePageItems
         title="Disa nga Barnatoret"
         link={{ url: "/", label: "Te gjitha barnatoret" }}
         items={[

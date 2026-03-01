@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { TrustBadge } from "../components/trust-badge/trust-badge";
+import { useAuth } from "../context/auth-context";
 
 export const SignupPage = () => {
+  const navigate = useNavigate();
+  const { registerPatient } = useAuth();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -14,10 +17,39 @@ export const SignupPage = () => {
     confirmPassword: "",
   });
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Signup:", formData);
+    setError("");
+    setSuccessMessage("");
+    if (!agreeTerms) {
+      setError("Duhet të pranoni kushtet e përdorimit");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await registerPatient({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+      });
+      if (result?.message) {
+        setSuccessMessage(result.message);
+      } else {
+        navigate({ to: "/" });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Diçka shkoi gabim");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -38,6 +70,22 @@ export const SignupPage = () => {
 
           {/* Form Card */}
           <div className="bg-white border border-[#dedede] shadow-sm p-6 sm:p-8">
+            {error && (
+              <div className="mb-5 p-4 bg-red-50 border border-red-200 text-red-600 text-[14px] flex items-center gap-3">
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {error}
+              </div>
+            )}
+            {successMessage && (
+              <div className="mb-5 p-4 bg-green-50 border border-green-200 text-green-700 text-[14px] flex items-center gap-3">
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {successMessage}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Name Row */}
               <div className="grid grid-cols-2 gap-4">
@@ -170,9 +218,20 @@ export const SignupPage = () => {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full h-12 text-[16px] font-[600] tracking-[0.44px] bg-primary hover:bg-primary/90"
+                disabled={isLoading}
+                className="w-full h-12 text-[16px] font-[600] tracking-[0.44px] bg-primary hover:bg-primary/90 disabled:opacity-70"
               >
-                Regjistrohu
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Duke u regjistruar...
+                  </div>
+                ) : (
+                  "Regjistrohu"
+                )}
               </Button>
             </form>
 
@@ -227,7 +286,7 @@ export const SignupPage = () => {
             {/* Login Link */}
             <p className="mt-6 text-center text-[14px] font-normal tracking-[0.39px] text-[#757b8c]">
               Keni llogari?{" "}
-              <Link to="/signin" className="text-primary font-[600] hover:underline">
+              <Link to="/signin" search={{ mode: "login" }} className="text-primary font-[600] hover:underline">
                 Kyçuni këtu
               </Link>
             </p>

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useAuth } from "../context/auth-context";
+import { useAuth, getUserDisplayName, getUserInitials, getUserPicture } from "../context/auth-context";
 import { Button } from "../components/ui/button";
 
 // Mock reviews data
@@ -70,7 +70,7 @@ export const MyReviewsPage = () => {
           </svg>
           <h1 className="text-[22px] font-[600] text-[#494e60] mb-2">Kërkohet kyçja</h1>
           <p className="text-[14px] text-[#9fa4b4] mb-6">Duhet të jeni të kyçur për të parë vlerësimet tuaja.</p>
-          <Link to="/signin" className="inline-flex items-center justify-center h-12 px-8 bg-primary hover:bg-primary/90 text-white text-[14px] font-[600]">
+          <Link to="/signin" search={{ mode: "login" }} className="inline-flex items-center justify-center h-12 px-8 bg-primary hover:bg-primary/90 text-white text-[14px] font-[600]">
             Kyçu
           </Link>
         </div>
@@ -100,7 +100,7 @@ export const MyReviewsPage = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-[26px] font-[600] tracking-[0.72px] text-[#494e60]">Llogaria ime</h1>
-          <p className="text-[14px] text-[#9fa4b4] mt-1">Menaxhoni të dhënat dhe preferencat tuaja</p>
+          <p className="text-[14px] text-[#9fa4b4] mt-1">Të dhënat dhe preferencat tuaja</p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -110,12 +110,16 @@ export const MyReviewsPage = () => {
               {/* User Info */}
               <div className="p-5 border-b border-[#dedede]">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-primary to-[#6AA8FF] flex items-center justify-center text-white text-[18px] font-bold">
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-primary to-[#6AA8FF] flex items-center justify-center text-white text-[18px] font-bold">
+                    {user && getUserPicture(user) ? (
+                      <img src={getUserPicture(user)} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      user ? getUserInitials(user) : ""
+                    )}
                   </div>
                   <div>
                     <h3 className="text-[16px] font-[600] text-[#494e60]">
-                      {user?.firstName} {user?.lastName}
+                      {user ? getUserDisplayName(user) : ""}
                     </h3>
                     <p className="text-[13px] text-[#9fa4b4]">{user?.email}</p>
                   </div>

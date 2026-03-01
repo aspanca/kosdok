@@ -69,7 +69,7 @@ export const Reviews = ({ entityType, entityName: _entityName, reviews = mockRev
     if (newReview.rating === 0 || !newReview.comment.trim()) return;
     setSubmitted([{
       id: Date.now().toString(),
-      userName: user ? `${user.firstName} ${user.lastName?.[0]}.` : "Anonim",
+      userName: user ? (user.type === "patient" ? `${user.firstName} ${user.lastName?.[0] ?? ""}.` : user.clinicName) : "Anonim",
       rating: newReview.rating,
       date: new Date().toLocaleDateString("sq-AL", { day: "numeric", month: "short", year: "numeric" }),
       comment: newReview.comment,
@@ -119,7 +119,7 @@ export const Reviews = ({ entityType, entityName: _entityName, reviews = mockRev
             {showForm ? "Anulo" : "+ Shkruaj"}
           </button>
         ) : (
-          <Link to="/signin" className="h-8 px-4 inline-flex items-center bg-primary text-white text-[12px] font-[600] rounded-full hover:bg-primary/90 transition-colors">
+          <Link to="/signin" search={{ mode: "login" }} className="h-8 px-4 inline-flex items-center bg-primary text-white text-[12px] font-[600] rounded-full hover:bg-primary/90 transition-colors">
             Kyçu
           </Link>
         )}
@@ -162,7 +162,7 @@ export const Reviews = ({ entityType, entityName: _entityName, reviews = mockRev
           <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <Link to="/signin" className="text-primary font-[600] hover:underline">Kyçuni</Link> për të vlerësuar {label}.
+          <Link to="/signin" search={{ mode: "login" }} className="text-primary font-[600] hover:underline">Kyçuni</Link> për të vlerësuar {label}.
         </div>
       )}
 

@@ -3,6 +3,7 @@ import { ReactComponent as BloodSvg } from "./assets/blood-drop.svg";
 import { ReactComponent as DoctorSvg } from "./assets/doctor.svg";
 import { ReactComponent as HospitalSvg } from "./assets/hospital.svg";
 import { ReactComponent as ClinicsSvg } from "./assets/clinics.svg";
+import { ReactComponent as LabSvg } from "./assets/lab.svg";
 import { ReactComponent as MedicationSvg } from "./assets/medication.svg";
 
 export const HomepageCategories = () => {
@@ -10,6 +11,7 @@ export const HomepageCategories = () => {
     { icon: <HospitalSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Spitalet", to: "/hospital" },
     { icon: <ClinicsSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Klinikat", to: "/results" },
     { icon: <DoctorSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Doktoret", to: "/doctor" },
+    { icon: <LabSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Laboratorët", to: "/results" },
     { icon: <MedicationSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Barnatoret", to: "/results" },
     { icon: <BloodSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Dhuro Gjak", to: "/donate-blood" },
   ];
@@ -21,7 +23,7 @@ export const HomepageCategories = () => {
       </h2>
       
       {/* Mobile: Horizontal scroll, Desktop: Grid */}
-      <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory md:grid md:grid-cols-5 md:gap-4 md:overflow-visible md:pb-0 scrollbar-hide">
+      <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-6 md:gap-4 md:overflow-visible md:pb-0 scrollbar-hide">
         {categories.map((category, index) => (
           <Link
             key={index}
