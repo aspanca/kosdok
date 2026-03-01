@@ -1,0 +1,51 @@
+@baseUrl=http://localhost:8080
+@contentType=application/json
+
+### Health check
+GET {{baseUrl}}/health HTTP/1.1
+Accept: application/json
+
+### Register 
+POST {{baseUrl}}/v1/auth/register HTTP/1.1
+Content-Type: {{contentType}}
+Accept: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+
+### Login 
+POST {{baseUrl}}/v1/auth/login HTTP/1.1
+Content-Type: {{contentType}}
+Accept: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+
+### Refresh token 
+POST {{baseUrl}}/v1/auth/refresh HTTP/1.1
+Accept: application/json
+Cookie: refresh_token=<paste-refresh-token-here>
+
+### Logout 
+POST {{baseUrl}}/v1/auth/logout HTTP/1.1
+Cookie: refresh_token=<paste-refresh-token-here>
+Authorization: Bearer <paste-access-token-here>
+
+### Current user 
+GET {{baseUrl}}/v1/auth/me HTTP/1.1
+Accept: application/json
+Authorization: Bearer <paste-access-token-here>
+
+### Login invalid payload example
+POST {{baseUrl}}/v1/auth/login HTTP/1.1
+Content-Type: {{contentType}}
+Accept: application/json
+
+{
+  "email": "",
+  "password": ""
+}

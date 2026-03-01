@@ -1,0 +1,244 @@
+openapi: 3.0.3
+info:
+  title: Kosdok Auth API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080/v1
+paths:
+  /auth/register:
+    post:
+      operationId: Register
+      tags:
+        - auth
+      summary: Register user with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/login:
+    post:
+      operationId: Login
+      tags:
+        - auth
+      summary: Login user with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/refresh:
+    post:
+      operationId: Refresh
+      tags:
+        - auth
+      summary: Rotate refresh token and issue new access token
+      responses:
+        '200':
+          description: Token refresh successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/logout:
+    post:
+      operationId: Logout
+      tags:
+        - auth
+      summary: Revoke current refresh token and clear session cookie
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Logout successful
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/me:
+    get:
+      operationId: GetAuthMe
+      tags:
+        - auth
+      summary: Get current authenticated user RBAC claims
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile and RBAC claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMeResponse'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 8
+          example: change-me-123
+    RegisterResponse:
+      type: object
+      required:
+        - user_id
+        - email
+        - roles
+      properties:
+        user_id:
+          type: string
+          example: usr_123
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        roles:
+          type: array
+          items:
+            type: string
+          example:
+            - patient
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 8
+          example: change-me-123
+    LoginResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          example: dummy-access-token
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 900
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: invalid_request
+        message:
+          type: string
+          example: The request payload is invalid.
+    AuthMeResponse:
+      type: object
+      required:
+        - user_id
+        - email
+        - roles
+        - permissions
+      properties:
+        user_id:
+          type: string
+          example: usr_123
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        roles:
+          type: array
+          items:
+            type: string
+          example:
+            - patient
+        permissions:
+          type: array
+          items:
+            type: string
+          example:
+            - auth:me:read
