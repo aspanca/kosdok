@@ -1,6 +1,6 @@
 import { Request } from "express";
 
-export type UserType = "patient" | "clinic";
+export type UserType = "patient" | "clinic" | "admin";
 
 export interface JwtPayload {
   id: number;

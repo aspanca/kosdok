@@ -5,6 +5,14 @@ export type Service = {
   id: number;
   name: string;
   category: string | null;
+  icon?: string | null;
+};
+
+export type Facility = {
+  id: number;
+  name: string;
+  icon: string | null;
+  category: string | null;
 };
 
 export type ClinicLocation = {
@@ -40,6 +48,7 @@ export type ClinicProfile = {
   pictures: string[];
   schedule: Record<string, ScheduleDay>;
   serviceIds: number[];
+  facilityIds: number[];
   locations: ClinicLocation[];
 };
 
@@ -57,11 +66,17 @@ export type ClinicProfileUpdate = {
   pictures?: string[];
   schedule?: Record<string, ScheduleDay>;
   serviceIds?: number[];
+  facilityIds?: number[];
   locations?: ClinicLocation[];
 };
 
 export async function getServices(): Promise<Service[]> {
   const { data } = await api.get<ApiResponse<Service[]>>("/clinic/services");
+  return data.data;
+}
+
+export async function getFacilities(): Promise<Facility[]> {
+  const { data } = await api.get<ApiResponse<Facility[]>>("/clinic/facilities");
   return data.data;
 }
 

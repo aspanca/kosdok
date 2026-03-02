@@ -6,6 +6,7 @@ import { clinicProfileSchema } from "./clinic.validation";
 export const clinicRouter = Router();
 
 clinicRouter.get("/services", clinicController.getServices);
+clinicRouter.get("/facilities", clinicController.getFacilities);
 
 clinicRouter.use(authenticate, authorize("clinic"));
 

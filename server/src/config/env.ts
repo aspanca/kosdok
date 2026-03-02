@@ -25,6 +25,7 @@ export const env = {
   },
 
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
+  adminUrl: process.env.ADMIN_URL || "http://localhost:5174",
 
   smtp: {
     host: process.env.SMTP_HOST || "smtp.ethereal.email",

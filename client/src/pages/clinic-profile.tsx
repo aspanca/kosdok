@@ -14,15 +14,16 @@ import {
   Linkedin,
   Clock,
   Stethoscope,
-  Save,
   Check,
   Plus,
   Trash2,
   Image,
+  Wifi,
 } from "lucide-react";
 import * as clinicApi from "../lib/api/clinic";
-import type { ClinicProfile, ClinicLocation, Service } from "../lib/api/clinic";
+import type { ClinicProfile, ClinicLocation, Service, Facility } from "../lib/api/clinic";
 import { formInputClass } from "../lib/form-styles";
+import { getServiceIcon, getFacilityIcon } from "../lib/icons";
 
 const WEEK_DAYS = [
   { id: "monday", label: "E Hënë" },
@@ -44,6 +45,7 @@ export const ClinicProfilePage = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ClinicProfile | null>(null);
   const [services, setServices] = useState<Service[]>([]);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -63,6 +65,7 @@ export const ClinicProfilePage = () => {
     pictures: [] as string[],
     schedule: emptySchedule() as Record<string, { open: string; close: string; closed: boolean }>,
     serviceIds: [] as number[],
+    facilityIds: [] as number[],
     locations: [] as ClinicLocation[],
   });
 
@@ -71,10 +74,11 @@ export const ClinicProfilePage = () => {
       navigate({ to: "/signin" });
       return;
     }
-    Promise.all([clinicApi.getClinicProfile(), clinicApi.getServices()])
-      .then(([profileData, servicesData]) => {
+    Promise.all([clinicApi.getClinicProfile(), clinicApi.getServices(), clinicApi.getFacilities()])
+      .then(([profileData, servicesData, facilitiesData]) => {
         setProfile(profileData);
         setServices(servicesData);
+        setFacilities(facilitiesData);
         setForm({
           clinicName: profileData.clinic_name ?? "",
           email: profileData.email ?? "",
@@ -92,6 +96,7 @@ export const ClinicProfilePage = () => {
               ? { ...emptySchedule(), ...profileData.schedule }
               : emptySchedule(),
           serviceIds: profileData.serviceIds ?? [],
+          facilityIds: profileData.facilityIds ?? [],
           locations: profileData.locations ?? [],
         });
       })
@@ -117,6 +122,7 @@ export const ClinicProfilePage = () => {
         pictures: form.pictures,
         schedule: form.schedule,
         serviceIds: form.serviceIds,
+        facilityIds: form.facilityIds,
         locations: form.locations.filter((l) => l.address || l.name || l.city),
       });
       setProfile(updated);
@@ -133,6 +139,13 @@ export const ClinicProfilePage = () => {
     setForm((prev) => ({
       ...prev,
       serviceIds: prev.serviceIds.includes(id) ? prev.serviceIds.filter((s) => s !== id) : [...prev.serviceIds, id],
+    }));
+  };
+
+  const toggleFacility = (id: number) => {
+    setForm((prev) => ({
+      ...prev,
+      facilityIds: prev.facilityIds.includes(id) ? prev.facilityIds.filter((f) => f !== id) : [...prev.facilityIds, id],
     }));
   };
 
@@ -435,6 +448,40 @@ export const ClinicProfilePage = () => {
             </div>
           </section>
 
+          {/* Lehtësirat (Facilities) */}
+          <section className="bg-white border border-[#dedede] rounded-xl p-6">
+            <h2 className="text-lg font-[600] text-[#494e60] mb-6 flex items-center gap-2">
+              <Wifi className="w-5 h-5 text-primary" />
+              Lehtësirat
+            </h2>
+            <p className="text-sm text-[#9fa4b4] mb-4">Zgjidhni lehtësirat që ofron klinika juaj (parking, Wi-Fi, etj.)</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {facilities.map((f) => {
+                const isSelected = form.facilityIds.includes(f.id);
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => toggleFacility(f.id)}
+                    className={`p-4 rounded-xl border text-left transition-all flex flex-col items-start ${
+                      isSelected ? "border-primary bg-primary/5" : "border-[#e5e7eb] hover:border-primary/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const Icon = getFacilityIcon(f.icon);
+                        return <Icon className="w-5 h-5 text-primary shrink-0" />;
+                      })()}
+                      <div className="text-sm font-[600] text-[#494e60]">{f.name}</div>
+                    </div>
+                    {f.category && <div className="text-xs text-[#9fa4b4] mt-0.5">{f.category}</div>}
+                    {isSelected && <Check className="w-4 h-4 text-primary mt-2" />}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
           {/* Services */}
           <section className="bg-white border border-[#dedede] rounded-xl p-6">
             <h2 className="text-lg font-[600] text-[#494e60] mb-6 flex items-center gap-2">
@@ -450,11 +497,17 @@ export const ClinicProfilePage = () => {
                     key={s.id}
                     type="button"
                     onClick={() => toggleService(s.id)}
-                    className={`p-4 rounded-xl border text-left transition-all ${
+                    className={`p-4 rounded-xl border text-left transition-all flex flex-col items-start ${
                       isSelected ? "border-primary bg-primary/5" : "border-[#e5e7eb] hover:border-primary/30"
                     }`}
                   >
-                    <div className="text-sm font-[600] text-[#494e60]">{s.name}</div>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const Icon = getServiceIcon(s.icon);
+                        return <Icon className="w-5 h-5 text-primary shrink-0" />;
+                      })()}
+                      <div className="text-sm font-[600] text-[#494e60]">{s.name}</div>
+                    </div>
                     {s.category && <div className="text-xs text-[#9fa4b4] mt-0.5">{s.category}</div>}
                     {isSelected && <Check className="w-4 h-4 text-primary mt-2" />}
                   </button>

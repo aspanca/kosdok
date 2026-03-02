@@ -11,6 +11,15 @@ export async function getServices(_req: AuthRequest, res: Response, next: NextFu
   }
 }
 
+export async function getFacilities(_req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const facilities = await clinicService.getFacilities();
+    res.json({ success: true, data: facilities });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getClinicProfile(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     if (!req.user || req.user.type !== "clinic") {

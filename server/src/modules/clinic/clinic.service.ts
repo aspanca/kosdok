@@ -7,7 +7,12 @@ function sanitizeClinic(user: Record<string, unknown>) {
 }
 
 export async function getServices() {
-  const rows = await db("services").select("id", "name", "category").orderBy("category").orderBy("name");
+  const rows = await db("services").select("id", "name", "category", "icon").orderBy("category").orderBy("name");
+  return rows;
+}
+
+export async function getFacilities() {
+  const rows = await db("facilities").select("id", "name", "icon", "category").orderBy("category").orderBy("name");
   return rows;
 }
 
@@ -19,6 +24,11 @@ export async function getClinicProfile(clinicId: number) {
     .where("clinic_id", clinicId)
     .select("service_id")
     .then((rows) => rows.map((r) => r.service_id));
+
+  const facilityIds = await db("clinic_facilities")
+    .where("clinic_id", clinicId)
+    .select("facility_id")
+    .then((rows) => rows.map((r) => r.facility_id));
 
   const locations = await db("clinic_locations")
     .where("clinic_id", clinicId)
@@ -40,6 +50,7 @@ export async function getClinicProfile(clinicId: number) {
   return {
     ...profile,
     serviceIds,
+    facilityIds,
     locations: locations.map((loc) => ({
       ...loc,
       lat: loc.lat != null ? Number(loc.lat) : null,
@@ -73,12 +84,32 @@ export async function updateClinicProfile(clinicId: number, input: Record<string
   if (Array.isArray(input.serviceIds)) {
     await db("clinic_services").where("clinic_id", clinicId).del();
     if (input.serviceIds.length > 0) {
-      await db("clinic_services").insert(
-        (input.serviceIds as number[]).map((serviceId) => ({
-          clinic_id: clinicId,
-          service_id: serviceId,
-        }))
-      );
+      const ids = [...new Set((input.serviceIds as number[]).map(Number).filter((id) => id > 0))];
+      const validIds = await db("services").whereIn("id", ids).select("id").then((rows) => rows.map((r) => r.id));
+      if (validIds.length > 0) {
+        await db("clinic_services").insert(
+          validIds.map((serviceId) => ({
+            clinic_id: clinicId,
+            service_id: serviceId,
+          }))
+        );
+      }
+    }
+  }
+
+  if (Array.isArray(input.facilityIds)) {
+    await db("clinic_facilities").where("clinic_id", clinicId).del();
+    if (input.facilityIds.length > 0) {
+      const ids = [...new Set((input.facilityIds as number[]).map(Number).filter((id) => id > 0))];
+      const validIds = await db("facilities").whereIn("id", ids).select("id").then((rows) => rows.map((r) => r.id));
+      if (validIds.length > 0) {
+        await db("clinic_facilities").insert(
+          validIds.map((facilityId) => ({
+            clinic_id: clinicId,
+            facility_id: facilityId,
+          }))
+        );
+      }
     }
   }
 

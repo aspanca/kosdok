@@ -31,6 +31,7 @@ export const clinicProfileSchema = z
     pictures: z.array(z.string().url()).optional(),
     schedule: z.record(z.string(), scheduleDaySchema).optional(),
     serviceIds: z.array(z.number()).optional(),
+    facilityIds: z.array(z.number()).optional(),
     locations: z.array(locationSchema).optional(),
   });
 

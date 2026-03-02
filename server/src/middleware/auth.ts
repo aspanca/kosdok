@@ -35,3 +35,9 @@ export function authorize(...allowedTypes: UserType[]) {
     next();
   };
 }
+
+export function authorizeAdmin(req: AuthRequest, _res: Response, next: NextFunction) {
+  if (!req.user) return next(ApiError.unauthorized());
+  if (req.user.type !== "admin") return next(ApiError.forbidden("Admin access required"));
+  next();
+}

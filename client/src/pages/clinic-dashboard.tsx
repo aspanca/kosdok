@@ -15,10 +15,12 @@ import {
   Instagram,
   Facebook,
   Linkedin,
+  Wifi,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import * as clinicApi from "../lib/api/clinic";
-import type { ClinicProfile, ClinicLocation, Service } from "../lib/api/clinic";
+import type { ClinicProfile, ClinicLocation, Service, Facility } from "../lib/api/clinic";
+import { getServiceIcon, getFacilityIcon } from "../lib/icons";
 
 const WEEK_DAYS: { id: string; label: string }[] = [
   { id: "monday", label: "E Hënë" },
@@ -35,6 +37,7 @@ export const ClinicDashboardPage = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ClinicProfile | null>(null);
   const [services, setServices] = useState<Service[]>([]);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,20 +46,28 @@ export const ClinicDashboardPage = () => {
       navigate({ to: "/signin" });
       return;
     }
-    Promise.all([clinicApi.getClinicProfile(), clinicApi.getServices()])
-      .then(([profileData, servicesData]) => {
+    Promise.all([clinicApi.getClinicProfile(), clinicApi.getServices(), clinicApi.getFacilities()])
+      .then(([profileData, servicesData, facilitiesData]) => {
         setProfile(profileData);
         setServices(servicesData);
+        setFacilities(facilitiesData);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Diçka shkoi gabim"))
       .finally(() => setLoading(false));
   }, [isLoggedIn, isClinic, navigate]);
 
-  const getServiceNames = (): string[] => {
+  const getClinicServices = (): Service[] => {
     if (!profile?.serviceIds?.length || !services.length) return [];
     return profile.serviceIds
-      .map((id: number) => services.find((s: Service) => s.id === id)?.name)
-      .filter((n: string | undefined): n is string => !!n);
+      .map((id: number) => services.find((s: Service) => s.id === id))
+      .filter((s): s is Service => !!s);
+  };
+
+  const getClinicFacilities = (): Facility[] => {
+    if (!profile?.facilityIds?.length || !facilities.length) return [];
+    return (profile.facilityIds ?? [])
+      .map((id: number) => facilities.find((f: Facility) => f.id === id))
+      .filter((f): f is Facility => !!f);
   };
 
   const formatSchedule = (): string => {
@@ -96,7 +107,7 @@ export const ClinicDashboardPage = () => {
 
   if (!profile) return null;
 
-  const serviceNames = getServiceNames();
+  const clinicServices = getClinicServices();
   const hasMainInfo =
     profile.clinic_name ||
     profile.address ||
@@ -105,8 +116,10 @@ export const ClinicDashboardPage = () => {
     profile.email ||
     profile.website ||
     profile.description;
+  const clinicFacilities = getClinicFacilities();
   const hasLocations = profile.locations?.length > 0;
-  const hasServices = serviceNames.length > 0;
+  const hasServices = clinicServices.length > 0;
+  const hasFacilities = clinicFacilities.length > 0;
 
   return (
     <div className="min-h-screen bg-background-page">
@@ -322,14 +335,58 @@ export const ClinicDashboardPage = () => {
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {serviceNames.map((name) => (
-                  <span
-                    key={name}
-                    className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm font-medium"
-                  >
-                    {name}
-                  </span>
-                ))}
+                {clinicServices.map((service) => {
+                  const Icon = getServiceIcon(service.icon);
+                  return (
+                    <span
+                      key={service.id}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm font-medium"
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {service.name}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Lehtësirat (Facilities) */}
+        <section className="bg-white rounded-xl border border-border shadow-sm overflow-hidden mb-6">
+          <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+              <Wifi className="w-5 h-5 text-primary" />
+              Lehtësirat
+            </h2>
+            <Link to="/clinic-profile">
+              <Button variant="ghost" size="sm" leftIcon={<Pencil className="w-4 h-4" />}>
+                Ndrysho
+              </Button>
+            </Link>
+          </div>
+          <div className="p-6">
+            {!hasFacilities ? (
+              <p className="text-text-muted text-sm">
+                Nuk keni zgjedhur ende lehtësira.{" "}
+                <Link to="/clinic-profile" className="text-primary hover:underline">
+                  Shtoni lehtësirat
+                </Link>
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {clinicFacilities.map((facility) => {
+                  const Icon = getFacilityIcon(facility.icon);
+                  return (
+                    <span
+                      key={facility.id}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm font-medium"
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {facility.name}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>

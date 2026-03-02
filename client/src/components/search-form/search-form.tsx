@@ -9,10 +9,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import { useServices } from "../../lib/hooks/use-services";
+import { useCities } from "../../lib/hooks/use-cities";
 
 export const SearchForm = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { data: services = [] } = useServices();
+  const { data: cities = [] } = useCities();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,58 +35,34 @@ export const SearchForm = () => {
           />
         </div>
 
-        {/* Category Select */}
+        {/* Category Select - from backend */}
         <div className="sm:w-48">
           <Select>
             <SelectTrigger className="h-12">
               <SelectValue placeholder={t("searchForm.categoryPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="cardiology">Kardiologji</SelectItem>
-              <SelectItem value="orthopedics">Ortopedi</SelectItem>
-              <SelectItem value="neurology">Neurologji</SelectItem>
-              <SelectItem value="dermatology">Dermatologji</SelectItem>
-              <SelectItem value="pediatrics">Pediatri</SelectItem>
-              <SelectItem value="radiology">Radiologji</SelectItem>
-              <SelectItem value="urology">Urologji</SelectItem>
-              <SelectItem value="gastroenterology">Gastroenterologji</SelectItem>
-              <SelectItem value="ophthalmology">Oftalmologji</SelectItem>
-              <SelectItem value="gynecology">Gjinekologji</SelectItem>
-              <SelectItem value="anesthesiology">Anesteziologji</SelectItem>
-              <SelectItem value="oncology">Onkologji</SelectItem>
-              <SelectItem value="emergency">Emergjencë</SelectItem>
-              <SelectItem value="psychiatry">Psikiatri</SelectItem>
-              <SelectItem value="endocrinology">Endokrinologji</SelectItem>
+              {services.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>
+                  {s.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Location Select */}
+        {/* Location Select - from backend */}
         <div className="sm:w-44">
           <Select>
             <SelectTrigger className="h-12">
               <SelectValue placeholder={t("searchForm.locationPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="prishtina">Prishtina</SelectItem>
-              <SelectItem value="prizren">Prizren</SelectItem>
-              <SelectItem value="gjakova">Gjakova</SelectItem>
-              <SelectItem value="peja">Peja</SelectItem>
-              <SelectItem value="mitrovica">Mitrovica</SelectItem>
-              <SelectItem value="ferizaj">Ferizaj</SelectItem>
-              <SelectItem value="gjilan">Gjilan</SelectItem>
-              <SelectItem value="podujeva">Podujeva</SelectItem>
-              <SelectItem value="fushe-kosova">Fushë Kosova</SelectItem>
-              <SelectItem value="vushtrria">Vushtrria</SelectItem>
-              <SelectItem value="lipjan">Lipjan</SelectItem>
-              <SelectItem value="malisheva">Malisheva</SelectItem>
-              <SelectItem value="skenderaj">Skenderaj</SelectItem>
-              <SelectItem value="dragash">Dragash</SelectItem>
-              <SelectItem value="klina">Klina</SelectItem>
-              <SelectItem value="suhareka">Suhareka</SelectItem>
-              <SelectItem value="decani">Deçani</SelectItem>
-              <SelectItem value="kamenica">Kamenica</SelectItem>
-              <SelectItem value="rahovec">Rahovec</SelectItem>
+              {cities.map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>
+                  {c.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
