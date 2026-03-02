@@ -18,12 +18,11 @@ import { verifyEmailRoute } from "./verify-email";
 import { profileRoute } from "./profile";
 import { appointmentsRoute } from "./appointments";
 import { myReviewsRoute } from "./my-reviews";
-import { clinicDashboardRoute } from "./clinic-dashboard";
 import { clinicProfileRoute } from "./clinic-profile";
 import { clinicSignupRoute } from "./clinic-signup";
 import { clinicSigninRoute } from "./clinic-signin";
 
-const routeTree = rootRoute.addChildren([homeROute, resultsRoute, hospitalRoute, doctorRoute, donateBloodRoute, bloodEventRoute, privacyPolicyRoute, blogRoute, blogPostRoute, contactRoute, advancedSearchRoute, signupRoute, signinRoute, verifyEmailRoute, profileRoute, appointmentsRoute, myReviewsRoute, clinicDashboardRoute, clinicProfileRoute, clinicSignupRoute, clinicSigninRoute]);
+const routeTree = rootRoute.addChildren([homeROute, resultsRoute, hospitalRoute, doctorRoute, donateBloodRoute, bloodEventRoute, privacyPolicyRoute, blogRoute, blogPostRoute, contactRoute, advancedSearchRoute, signupRoute, signinRoute, verifyEmailRoute, profileRoute, appointmentsRoute, myReviewsRoute, clinicProfileRoute, clinicSignupRoute, clinicSigninRoute]);
 
 export const router = createRouter({
   routeTree,

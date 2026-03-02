@@ -13,3 +13,4 @@ clinicRouter.use(authenticate, authorize("clinic"));
 clinicRouter.get("/me", clinicController.getClinicProfile);
 clinicRouter.patch("/me", validate(clinicProfileSchema), clinicController.updateClinicProfile);
 clinicRouter.post("/me/pictures", upload.single("picture"), clinicController.uploadClinicPicture);
+clinicRouter.post("/me/logo", upload.single("logo"), clinicController.uploadClinicLogo);

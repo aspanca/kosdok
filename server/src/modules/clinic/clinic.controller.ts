@@ -61,3 +61,21 @@ export async function uploadClinicPicture(req: AuthRequest, res: Response, next:
     next(error);
   }
 }
+
+export async function uploadClinicLogo(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.user || req.user.type !== "clinic") {
+      return res.status(403).json({ success: false, message: "Clinic access only" });
+    }
+    const file = req.file;
+    if (!file?.buffer) {
+      return res.status(400).json({ success: false, message: "No image file provided" });
+    }
+    const { uploadToCloudinary } = await import("../../middleware/upload");
+    const { url } = await uploadToCloudinary(file.buffer, "clinic-logos");
+    const profile = await clinicService.uploadClinicLogo(req.user.id, url);
+    res.json({ success: true, data: profile });
+  } catch (error) {
+    next(error);
+  }
+}

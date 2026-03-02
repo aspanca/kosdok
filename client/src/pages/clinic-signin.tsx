@@ -51,7 +51,7 @@ export const ClinicSigninPage = () => {
     // Check demo credentials
     if (formData.email === DEMO_CLINIC.email && formData.password === DEMO_CLINIC.password) {
       login(DEMO_CLINIC.data);
-      navigate({ to: "/clinic-dashboard" });
+      navigate({ to: "/clinic-profile" });
     } else {
       setError(t("auth.clinicSignin.errorWrongCredentials"));
       setIsLoading(false);

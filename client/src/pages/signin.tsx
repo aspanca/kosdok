@@ -93,7 +93,7 @@ export const SigninPage = ({ initialMode: propMode }: SigninPageProps = {}) => {
     setError("");
     try {
       const user = await signIn(data.email, data.password);
-      navigate({ to: user.type === "clinic" ? "/clinic-dashboard" : "/" });
+      navigate({ to: user.type === "clinic" ? "/clinic-profile" : "/" });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.signin.errorWrongCredentials"));
     }
@@ -137,7 +137,7 @@ export const SigninPage = ({ initialMode: propMode }: SigninPageProps = {}) => {
           password: data.password,
           confirmPassword: data.confirmPassword,
         });
-        navigate({ to: "/clinic-dashboard" });
+        navigate({ to: "/clinic-profile" });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.signin.errorGeneric"));

@@ -156,3 +156,11 @@ export async function uploadClinicPicture(clinicId: number, url: string) {
   await db("clinics").where("id", clinicId).update({ pictures: JSON.stringify(pictures) });
   return getClinicProfile(clinicId);
 }
+
+export async function uploadClinicLogo(clinicId: number, url: string) {
+  const clinic = await db("clinics").where("id", clinicId).first();
+  if (!clinic) throw ApiError.notFound("Clinic not found");
+
+  await db("clinics").where("id", clinicId).update({ logo: url });
+  return getClinicProfile(clinicId);
+}

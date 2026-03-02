@@ -56,7 +56,7 @@ export const ClinicSignupPage = () => {
       city: formData.city,
     });
 
-    navigate({ to: "/clinic-dashboard" });
+    navigate({ to: "/clinic-profile" });
   };
 
   return (

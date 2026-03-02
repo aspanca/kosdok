@@ -96,3 +96,10 @@ export async function uploadClinicPicture(file: File): Promise<ClinicProfile> {
   const { data } = await api.post<ApiResponse<ClinicProfile>>("/clinic/me/pictures", formData);
   return data.data;
 }
+
+export async function uploadClinicLogo(file: File): Promise<ClinicProfile> {
+  const formData = new FormData();
+  formData.append("logo", file);
+  const { data } = await api.post<ApiResponse<ClinicProfile>>("/clinic/me/logo", formData);
+  return data.data;
+}

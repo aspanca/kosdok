@@ -62,6 +62,7 @@ export const ClinicProfilePage = () => {
     instagram: "",
     facebook: "",
     linkedin: "",
+    logo: null as string | null,
     pictures: [] as string[],
     schedule: emptySchedule() as Record<string, { open: string; close: string; closed: boolean }>,
     serviceIds: [] as number[],
@@ -90,6 +91,7 @@ export const ClinicProfilePage = () => {
           instagram: profileData.instagram ?? "",
           facebook: profileData.facebook ?? "",
           linkedin: profileData.linkedin ?? "",
+          logo: profileData.logo ?? null,
           pictures: profileData.pictures ?? [],
           schedule:
             Object.keys(profileData.schedule || {}).length > 0
@@ -180,6 +182,18 @@ export const ClinicProfilePage = () => {
     }));
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const updated = await clinicApi.uploadClinicLogo(file);
+      setForm((prev) => ({ ...prev, logo: updated.logo ?? null }));
+      setProfile(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ngarkimi i logos dështoi");
+    }
+  };
+
   const handlePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -213,8 +227,8 @@ export const ClinicProfilePage = () => {
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <Link to="/clinic-dashboard" className="text-[#9fa4b4] hover:text-primary">
-              ← Kthehu te paneli
+            <Link to="/" className="text-[#9fa4b4] hover:text-primary">
+              ← Kthehu në faqen kryesore
             </Link>
             <h1 className="text-[26px] font-[600] text-[#494e60]">Redaktimi i profilit</h1>
           </div>
@@ -246,6 +260,22 @@ export const ClinicProfilePage = () => {
               Informacioni bazë
             </h2>
             <div className="grid gap-5">
+              <div>
+                <label className="block text-[14px] font-[600] text-[#494e60] mb-2">Logo / Foto profili</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-[#dedede] bg-[#f8f8f8] flex items-center justify-center">
+                    {form.logo ? (
+                      <img src={form.logo} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <Image className="w-10 h-10 text-[#9fa4b4]" />
+                    )}
+                  </div>
+                  <label className="px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg cursor-pointer hover:bg-primary/5 transition-colors">
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                    {form.logo ? "Ndrysho logon" : "Ngarko logo"}
+                  </label>
+                </div>
+              </div>
               <div>
                 <label className="block text-[14px] font-[600] text-[#494e60] mb-2">Emri</label>
                 <Input

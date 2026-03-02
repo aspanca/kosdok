@@ -2,6 +2,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth, getUserDisplayName, getUserInitials, getUserPicture } from "../context/auth-context";
 import { Button } from "../components/ui/button";
 
+// Data URI fallback - no network request, prevents infinite onError loop
+const IMAGE_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect fill='%23e5e7eb' width='64' height='64'/%3E%3Crect fill='%239ca3af' x='24' y='20' width='16' height='16'/%3E%3Crect fill='%239ca3af' x='14' y='42' width='36' height='4' rx='2'/%3E%3C/svg%3E";
+
 // Mock reviews data
 const mockReviews = [
   {
@@ -207,7 +211,10 @@ export const MyReviewsPage = () => {
                             alt={review.entityName}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://via.placeholder.com/64";
+                              const img = e.target as HTMLImageElement;
+                              if (!img.src.startsWith("data:")) {
+                                img.src = IMAGE_PLACEHOLDER;
+                              }
                             }}
                           />
                         </div>
