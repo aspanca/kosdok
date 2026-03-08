@@ -1,51 +1,128 @@
-@baseUrl=http://localhost:8080
-@contentType=application/json
+@baseUrl = http://localhost:3000/v1
+@accessToken = {{SIGN_IN.response.body.$.data.accessToken}}
+@refreshToken = {{SIGN_IN.response.body.$.data.refreshToken}}
+@verificationToken = paste_verification_token_here
+@resetPasswordToken = paste_reset_password_token_here
 
-### Health check
-GET {{baseUrl}}/health HTTP/1.1
-Accept: application/json
+### HEALTH
+# Health
+# @name HEALTH
+GET {{baseUrl}}/health
 
-### Register 
-POST {{baseUrl}}/v1/auth/register HTTP/1.1
-Content-Type: {{contentType}}
-Accept: application/json
+### SIGN_UP
+# Sign up (patient)
+# @name SIGN_UP
+POST {{baseUrl}}/auth/sign-up
+Content-Type: application/json
 
 {
-  "email": "user@example.com",
-  "password": "password123"
+  "email": "patient.new@kosdok.local",
+  "fullName": "New Patient",
+  "password": "Password123"
 }
 
-### Login 
-POST {{baseUrl}}/v1/auth/login HTTP/1.1
-Content-Type: {{contentType}}
-Accept: application/json
+### RESEND_VERIFICATION
+# Resend verification email
+# @name RESEND_VERIFICATION
+POST {{baseUrl}}/auth/resend-verification
+Content-Type: application/json
 
 {
-  "email": "user@example.com",
-  "password": "password123"
+  "email": "patient.new@kosdok.local"
 }
 
-### Refresh token 
-POST {{baseUrl}}/v1/auth/refresh HTTP/1.1
-Accept: application/json
-Cookie: refresh_token=<paste-refresh-token-here>
+### VERIFY_EMAIL
+# Verify email
+# @name VERIFY_EMAIL
+GET {{baseUrl}}/auth/verify-email?token={{verificationToken}}
 
-### Logout 
-POST {{baseUrl}}/v1/auth/logout HTTP/1.1
-Cookie: refresh_token=<paste-refresh-token-here>
-Authorization: Bearer <paste-access-token-here>
-
-### Current user 
-GET {{baseUrl}}/v1/auth/me HTTP/1.1
-Accept: application/json
-Authorization: Bearer <paste-access-token-here>
-
-### Login invalid payload example
-POST {{baseUrl}}/v1/auth/login HTTP/1.1
-Content-Type: {{contentType}}
-Accept: application/json
+### SIGN_IN
+# Sign in (seed user)
+# @name SIGN_IN
+POST {{baseUrl}}/auth/sign-in
+Content-Type: application/json
 
 {
-  "email": "",
-  "password": ""
+  "email": "patient.new@kosdok.local",
+  "password": "Password123"
+}
+
+### REFRESH
+# Refresh tokens
+# @name REFRESH
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### LOGOUT
+# Logout (revoke refresh token)
+# @name LOGOUT
+POST {{baseUrl}}/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### FORGOT_PASSWORD
+# Forgot password
+# @name FORGOT_PASSWORD
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "patient@kosdok.local"
+}
+
+### RESET_PASSWORD
+# Reset password
+# @name RESET_PASSWORD
+POST {{baseUrl}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "{{resetPasswordToken}}",
+  "newPassword": "Password1234",
+  "confirmPassword": "Password1234"
+}
+
+### AUTH_ME
+# Get auth claims
+# @name AUTH_ME
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+### CHANGE_PASSWORD
+# Change password
+# @name CHANGE_PASSWORD
+PATCH {{baseUrl}}/auth/change-password
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "Patient123!",
+  "newPassword": "Patient1234",
+  "confirmPassword": "Patient1234"
+}
+
+### PROFILE_GET
+# Get my profile
+# @name PROFILE_GET
+GET {{baseUrl}}/me/profile
+Authorization: Bearer {{accessToken}}
+
+### PROFILE_PATCH
+# Update my profile
+# @name PROFILE_PATCH
+PATCH {{baseUrl}}/me/profile
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "fullName": "Demo Patient Updated",
+  "city": "Prishtine",
+  "locale": "sq"
 }

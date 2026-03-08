@@ -1,7 +1,0 @@
-package: authapi
-generate:
-  chi-server: true
-  strict-server: true
-  embedded-spec: true
-  models: true
-output: internal/transport/httpapi/auth/openapi/auth.gen.go

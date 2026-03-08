@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1772891346887,
+      "tag": "0000_colorful_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1772898367169,
+      "tag": "0001_sloppy_cardiac",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1772911329771,
+      "tag": "0002_bitter_zeigeist",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1772912484314,
+      "tag": "0003_acoustic_sue_storm",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1772961329956,
+      "tag": "0004_misty_the_leader",
+      "breakpoints": true
+    }
+  ]
+}
