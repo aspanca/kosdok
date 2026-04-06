@@ -7,6 +7,7 @@ import { AppController } from "./app.controller";
 import { validateEnvironment } from "./config/environment.validation";
 import { DatabaseModule } from "./database/database.module";
 import { AppointmentsModule } from "./modules/appointments/appointments.module";
+import { CatalogModule } from "./modules/catalog/catalog.module";
 import { ClinicModule } from "./modules/clinic/clinic.module";
 import { JwtAuthGuard } from "./modules/identity/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./modules/identity/guards/permissions.guard";
@@ -18,6 +19,7 @@ import { UserModule } from "./modules/user/user.module";
 @Module({
   imports: [
     AppointmentsModule,
+    CatalogModule,
     ClinicModule,
     ConfigModule.forRoot({
       envFilePath: resolveEnvironmentFilePaths(process.env.NODE_ENV),

@@ -1,0 +1,48 @@
+export interface CityCatalogEntry {
+  code: string;
+  countryCode: string;
+  name: string;
+  normalizedName: string;
+  postalCode: string;
+}
+
+export const cityCatalog: readonly CityCatalogEntry[] = [
+  { code: "xk-prishtine", countryCode: "XK", name: "Prishtine", normalizedName: "prishtine", postalCode: "10000" },
+  { code: "xk-fushe-kosove", countryCode: "XK", name: "Fushe Kosove", normalizedName: "fushe kosove", postalCode: "10080" },
+  { code: "xk-lipjan", countryCode: "XK", name: "Lipjan", normalizedName: "lipjan", postalCode: "14050" },
+  { code: "xk-podujeve", countryCode: "XK", name: "Podujeve", normalizedName: "podujeve", postalCode: "11000" },
+  { code: "xk-obiliq", countryCode: "XK", name: "Obiliq", normalizedName: "obiliq", postalCode: "11050" },
+  { code: "xk-gracanice", countryCode: "XK", name: "Gracanice", normalizedName: "gracanice", postalCode: "10500" },
+  { code: "xk-drenas", countryCode: "XK", name: "Drenas", normalizedName: "drenas", postalCode: "12050" },
+  { code: "xk-novoberde", countryCode: "XK", name: "Novoberde", normalizedName: "novoberde", postalCode: "16050" },
+  { code: "xk-prizren", countryCode: "XK", name: "Prizren", normalizedName: "prizren", postalCode: "20000" },
+  { code: "xk-dragash", countryCode: "XK", name: "Dragash", normalizedName: "dragash", postalCode: "22000" },
+  { code: "xk-suhareke", countryCode: "XK", name: "Suhareke", normalizedName: "suhareke", postalCode: "23000" },
+  { code: "xk-malisheve", countryCode: "XK", name: "Malisheve", normalizedName: "malisheve", postalCode: "24000" },
+  { code: "xk-peje", countryCode: "XK", name: "Peje", normalizedName: "peje", postalCode: "30000" },
+  { code: "xk-istog", countryCode: "XK", name: "Istog", normalizedName: "istog", postalCode: "31000" },
+  { code: "xk-kline", countryCode: "XK", name: "Kline", normalizedName: "kline", postalCode: "32000" },
+  { code: "xk-decan", countryCode: "XK", name: "Decan", normalizedName: "decan", postalCode: "33000" },
+  { code: "xk-junik", countryCode: "XK", name: "Junik", normalizedName: "junik", postalCode: "33050" },
+  { code: "xk-rahovec", countryCode: "XK", name: "Rahovec", normalizedName: "rahovec", postalCode: "34000" },
+  { code: "xk-mitrovice", countryCode: "XK", name: "Mitrovice", normalizedName: "mitrovice", postalCode: "40000" },
+  { code: "xk-mitrovica-veriut", countryCode: "XK", name: "Mitrovica e Veriut", normalizedName: "mitrovica e veriut", postalCode: "40000" },
+  { code: "xk-skenderaj", countryCode: "XK", name: "Skenderaj", normalizedName: "skenderaj", postalCode: "41000" },
+  { code: "xk-vushtrri", countryCode: "XK", name: "Vushtrri", normalizedName: "vushtrri", postalCode: "42000" },
+  { code: "xk-zubin-potoku", countryCode: "XK", name: "Zubin Potoku", normalizedName: "zubin potoku", postalCode: "43000" },
+  { code: "xk-leposaviq", countryCode: "XK", name: "Leposaviq", normalizedName: "leposaviq", postalCode: "44000" },
+  { code: "xk-zvecan", countryCode: "XK", name: "Zvecan", normalizedName: "zvecan", postalCode: "45000" },
+  { code: "xk-gjakove", countryCode: "XK", name: "Gjakove", normalizedName: "gjakove", postalCode: "50000" },
+  { code: "xk-gjilan", countryCode: "XK", name: "Gjilan", normalizedName: "gjilan", postalCode: "60000" },
+  { code: "xk-kamenice", countryCode: "XK", name: "Kamenice", normalizedName: "kamenice", postalCode: "61000" },
+  { code: "xk-viti", countryCode: "XK", name: "Viti", normalizedName: "viti", postalCode: "62000" },
+  { code: "xk-kllokot", countryCode: "XK", name: "Kllokot", normalizedName: "kllokot", postalCode: "63000" },
+  { code: "xk-partesh", countryCode: "XK", name: "Partesh", normalizedName: "partesh", postalCode: "64000" },
+  { code: "xk-ranillug", countryCode: "XK", name: "Ranillug", normalizedName: "ranillug", postalCode: "65000" },
+  { code: "xk-ferizaj", countryCode: "XK", name: "Ferizaj", normalizedName: "ferizaj", postalCode: "70000" },
+  { code: "xk-shtime", countryCode: "XK", name: "Shtime", normalizedName: "shtime", postalCode: "71000" },
+  { code: "xk-kacanik", countryCode: "XK", name: "Kacanik", normalizedName: "kacanik", postalCode: "72000" },
+  { code: "xk-hani-elezit", countryCode: "XK", name: "Hani i Elezit", normalizedName: "hani i elezit", postalCode: "73000" },
+  { code: "xk-shterpce", countryCode: "XK", name: "Shterpce", normalizedName: "shterpce", postalCode: "74000" },
+  { code: "xk-mamushe", countryCode: "XK", name: "Mamushe", normalizedName: "mamushe", postalCode: "75000" },
+];
