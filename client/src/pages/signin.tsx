@@ -308,7 +308,7 @@ export const SigninPage = ({ initialMode: propMode }: SigninPageProps = {}) => {
                 ) : (
                   <div>
                     <label className="block text-[14px] font-[600] tracking-[0.39px] text-[#494e60] mb-2">{t("auth.signin.clinicName")}</label>
-                    <Input {...signupForm.register("clinicName", { required: accountType !== "patient" })} placeholder={t("auth.signin.clinicNamePlaceholder")} className={formInputClass} />
+                    <Input {...signupForm.register("clinicName", { required: true })} placeholder={t("auth.signin.clinicNamePlaceholder")} className={formInputClass} />
                   </div>
                 )}
                 <div>
@@ -445,9 +445,13 @@ export const SigninPage = ({ initialMode: propMode }: SigninPageProps = {}) => {
             {accountType === "patient" && (
               <div className="mt-6 pt-6 border-t border-[#dedede] text-center">
                 <p className="text-[13px] text-[#9fa4b4] mb-2">{t("auth.signin.clinicPrompt")}</p>
-                <Link to="/clinic-signin" className="text-primary font-[600] text-[14px] hover:underline">
+                <button
+                  type="button"
+                  onClick={() => setAccountType("clinic")}
+                  className="text-primary font-[600] text-[14px] hover:underline"
+                >
                   {t("auth.signin.loginAsClinic")}
-                </Link>
+                </button>
               </div>
             )}
           </div>

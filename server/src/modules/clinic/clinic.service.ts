@@ -76,6 +76,7 @@ export async function updateClinicProfile(clinicId: number, input: Record<string
   if (input.linkedin !== undefined) updates.linkedin = input.linkedin === "" ? null : input.linkedin;
   if (input.pictures !== undefined) updates.pictures = JSON.stringify(input.pictures);
   if (input.schedule !== undefined) updates.schedule = JSON.stringify(input.schedule);
+  if (input.slotDurationMinutes !== undefined) updates.slot_duration_minutes = input.slotDurationMinutes;
 
   if (Object.keys(updates).length > 0) {
     await db("clinics").where("id", clinicId).update(updates);

@@ -1,28 +1,16 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../context/auth-context";
+import { getProviderReviews, createReview } from "../../lib/api/reviews";
+import type { ProviderType } from "../../lib/api/providers";
 import { Button } from "../ui/button";
-
-interface Review {
-  id: string;
-  userName: string;
-  rating: number;
-  date: string;
-  comment: string;
-  helpful: number;
-}
 
 interface ReviewsProps {
   entityType: "doctor" | "clinic" | "hospital";
+  entityId: number;
   entityName: string;
-  reviews?: Review[];
 }
-
-const mockReviews: Review[] = [
-  { id: "1", userName: "Arben K.", rating: 5, date: "15 Jan 2026", comment: "Shërbim i shkëlqyer! Mjeku ishte shumë profesional.", helpful: 12 },
-  { id: "2", userName: "Leonora B.", rating: 4, date: "10 Jan 2026", comment: "Eksperiencë shumë e mirë. Stafi miqësor.", helpful: 8 },
-  { id: "3", userName: "Besnik G.", rating: 5, date: "5 Jan 2026", comment: "Trajtim i jashtëzakonshëm! Faleminderit.", helpful: 15 },
-];
 
 const StarRating = ({ rating, onRatingChange, interactive = false, size = "sm" }: {
   rating: number;
@@ -32,7 +20,7 @@ const StarRating = ({ rating, onRatingChange, interactive = false, size = "sm" }
 }) => {
   const [hover, setHover] = useState(0);
   const sizes = { xs: "w-3.5 h-3.5", sm: "w-4 h-4", md: "w-5 h-5" };
-  
+
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => (
@@ -54,32 +42,52 @@ const StarRating = ({ rating, onRatingChange, interactive = false, size = "sm" }
   );
 };
 
-export const Reviews = ({ entityType, entityName: _entityName, reviews = mockReviews }: ReviewsProps) => {
-  void _entityName; // Used for future logic
-  const { isLoggedIn, user } = useAuth();
-  const [showForm, setShowForm] = useState(false);
-  const [newReview, setNewReview] = useState({ rating: 0, comment: "" });
-  const [submitted, setSubmitted] = useState<Review[]>([]);
+function formatReviewDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("sq-AL", { day: "numeric", month: "short", year: "numeric" });
+}
 
-  const all = [...submitted, ...reviews];
-  const avg = all.reduce((a, r) => a + r.rating, 0) / all.length || 0;
+export const Reviews = ({ entityType, entityId, entityName: _entityName }: ReviewsProps) => {
+  void _entityName;
+  const providerType: ProviderType = entityType === "doctor" ? "doctor" : "clinic";
+  const { isLoggedIn, user } = useAuth();
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [newReview, setNewReview] = useState({ rating: 0, comment: "" });
+
+  const { data } = useQuery({
+    queryKey: ["reviews", providerType, entityId],
+    queryFn: () => getProviderReviews(providerType, entityId),
+  });
+
+  const reviews = data?.reviews ?? [];
+  const avg = data?.summary.rating ?? 0;
+  const count = data?.summary.reviewCount ?? 0;
+
+  const reviewMutation = useMutation({
+    mutationFn: createReview,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reviews", providerType, entityId] });
+      queryClient.invalidateQueries({ queryKey: ["my-reviews"] });
+      setNewReview({ rating: 0, comment: "" });
+      setShowForm(false);
+    },
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newReview.rating === 0 || !newReview.comment.trim()) return;
-    setSubmitted([{
-      id: Date.now().toString(),
-      userName: user ? (user.type === "patient" ? `${user.firstName} ${user.lastName?.[0] ?? ""}.` : user.clinicName) : "Anonim",
+    if (newReview.rating === 0 || !newReview.comment.trim() || reviewMutation.isPending) return;
+    reviewMutation.mutate({
+      providerType,
+      providerId: entityId,
       rating: newReview.rating,
-      date: new Date().toLocaleDateString("sq-AL", { day: "numeric", month: "short", year: "numeric" }),
-      comment: newReview.comment,
-      helpful: 0,
-    }, ...submitted]);
-    setNewReview({ rating: 0, comment: "" });
-    setShowForm(false);
+      comment: newReview.comment.trim(),
+    });
   };
 
+  const canReview = isLoggedIn && user?.type === "patient";
   const label = entityType === "doctor" ? "mjekun" : entityType === "clinic" ? "klinikën" : "spitalin";
+  const visible = showAll ? reviews : reviews.slice(0, 3);
 
   return (
     <div className="bg-white border border-[#dedede]">
@@ -88,16 +96,16 @@ export const Reviews = ({ entityType, entityName: _entityName, reviews = mockRev
         <div className="flex items-center gap-4">
           {/* Rating Display */}
           <div className="text-center">
-            <div className="text-[32px] font-bold text-[#494e60] leading-none">{avg.toFixed(1)}</div>
-            <StarRating rating={Math.round(avg)} size="xs" />
-            <p className="text-[10px] text-[#9fa4b4] mt-1">{all.length} vlerësime</p>
+            <div className="text-[32px] font-bold text-[#494e60] leading-none">{(avg ?? 0).toFixed(1)}</div>
+            <StarRating rating={Math.round(avg ?? 0)} size="xs" />
+            <p className="text-[10px] text-[#9fa4b4] mt-1">{count} vlerësime</p>
           </div>
-          
+
           {/* Rating Bars */}
           <div className="hidden sm:flex flex-col gap-0.5">
             {[5, 4, 3, 2, 1].map((r) => {
-              const count = all.filter((x) => x.rating === r).length;
-              const pct = (count / all.length) * 100 || 0;
+              const barCount = reviews.filter((x) => x.rating === r).length;
+              const pct = (barCount / reviews.length) * 100 || 0;
               return (
                 <div key={r} className="flex items-center gap-1.5">
                   <span className="text-[10px] text-[#9fa4b4] w-2">{r}</span>
@@ -111,22 +119,22 @@ export const Reviews = ({ entityType, entityName: _entityName, reviews = mockRev
         </div>
 
         {/* Action Button */}
-        {isLoggedIn ? (
+        {canReview ? (
           <button
             onClick={() => setShowForm(!showForm)}
             className={`h-8 px-4 text-[12px] font-[600] rounded-full transition-colors ${showForm ? "bg-[#f0f0f0] text-[#494e60]" : "bg-primary text-white hover:bg-primary/90"}`}
           >
             {showForm ? "Anulo" : "+ Shkruaj"}
           </button>
-        ) : (
+        ) : !isLoggedIn ? (
           <Link to="/signin" search={{ mode: "login" }} className="h-8 px-4 inline-flex items-center bg-primary text-white text-[12px] font-[600] rounded-full hover:bg-primary/90 transition-colors">
             Kyçu
           </Link>
-        )}
+        ) : null}
       </div>
 
       {/* Form */}
-      {showForm && isLoggedIn && (
+      {showForm && canReview && (
         <form onSubmit={handleSubmit} className="p-4 bg-[#fafafa] border-b border-[#f0f0f0]">
           <div className="flex items-center gap-3 mb-3">
             <span className="text-[12px] font-[600] text-[#494e60]">Vlerësimi:</span>
@@ -145,9 +153,14 @@ export const Reviews = ({ entityType, entityName: _entityName, reviews = mockRev
             className="w-full px-3 py-2 rounded-lg border border-[#e0e0e0] bg-white text-[13px] placeholder:text-[#bbb] focus:outline-none focus:border-primary resize-none mb-3"
             required
           />
+          {reviewMutation.isError && (
+            <p className="text-[12px] text-red-500 mb-2">
+              {reviewMutation.error instanceof Error ? reviewMutation.error.message : "Diçka shkoi gabim"}
+            </p>
+          )}
           <div className="flex gap-2">
-            <Button type="submit" disabled={newReview.rating === 0} className="h-8 px-5 bg-primary text-white text-[12px] font-[600] rounded-full disabled:opacity-50">
-              Dërgo
+            <Button type="submit" disabled={newReview.rating === 0 || reviewMutation.isPending} className="h-8 px-5 bg-primary text-white text-[12px] font-[600] rounded-full disabled:opacity-50">
+              {reviewMutation.isPending ? "Duke dërguar..." : "Dërgo"}
             </Button>
             <Button type="button" onClick={() => setShowForm(false)} className="h-8 px-4 bg-white border border-[#e0e0e0] text-[#494e60] text-[12px] font-[600] rounded-full hover:bg-[#f8f8f8]">
               Anulo
@@ -168,18 +181,25 @@ export const Reviews = ({ entityType, entityName: _entityName, reviews = mockRev
 
       {/* List */}
       <div className="divide-y divide-[#f0f0f0]">
-        {all.slice(0, 3).map((r) => (
+        {reviews.length === 0 && (
+          <div className="p-4 text-[12px] text-[#9fa4b4]">Ende nuk ka vlerësime. Bëhuni i pari!</div>
+        )}
+        {visible.map((r) => (
           <div key={r.id} className="p-4 flex gap-3 hover:bg-[#fafafa] transition-colors">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-[#6AA8FF] flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
-              {r.userName.split(" ").map((n) => n[0]).join("").toUpperCase()}
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-[#6AA8FF] flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0 overflow-hidden">
+              {r.patientPicture ? (
+                <img src={r.patientPicture} alt={r.patientName} className="w-full h-full object-cover" />
+              ) : (
+                r.patientName.split(" ").map((n) => n[0]).join("").toUpperCase()
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-[600] text-[#494e60]">{r.userName}</span>
+                  <span className="text-[13px] font-[600] text-[#494e60]">{r.patientName}</span>
                   <StarRating rating={r.rating} size="xs" />
                 </div>
-                <span className="text-[11px] text-[#bbb]">{r.date}</span>
+                <span className="text-[11px] text-[#bbb]">{formatReviewDate(r.createdAt)}</span>
               </div>
               <p className="text-[12px] text-[#666] leading-relaxed">{r.comment}</p>
             </div>
@@ -187,10 +207,10 @@ export const Reviews = ({ entityType, entityName: _entityName, reviews = mockRev
         ))}
       </div>
 
-      {all.length > 3 && (
+      {reviews.length > 3 && !showAll && (
         <div className="p-3 border-t border-[#f0f0f0] text-center">
-          <button className="text-[12px] font-[600] text-primary hover:underline">
-            Shiko të gjitha ({all.length})
+          <button onClick={() => setShowAll(true)} className="text-[12px] font-[600] text-primary hover:underline">
+            Shiko të gjitha ({reviews.length})
           </button>
         </div>
       )}

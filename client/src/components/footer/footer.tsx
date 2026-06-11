@@ -33,7 +33,8 @@ export const Footer = () => {
             <ul className="space-y-2.5">
               <li>
                 <Link
-                  to="/hospital"
+                  to="/results"
+                  search={{ type: "clinic" }}
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Spitalet
@@ -49,7 +50,8 @@ export const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/doctor"
+                  to="/results"
+                  search={{ type: "doctor" }}
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Doktoret

@@ -41,9 +41,9 @@ const emptySchedule = () =>
   );
 
 export const ClinicProfilePage = () => {
-  const { user, isLoggedIn, isClinic } = useAuth();
+  const { isLoggedIn, isClinic } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<ClinicProfile | null>(null);
+  const [, setProfile] = useState<ClinicProfile | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +65,7 @@ export const ClinicProfilePage = () => {
     logo: null as string | null,
     pictures: [] as string[],
     schedule: emptySchedule() as Record<string, { open: string; close: string; closed: boolean }>,
+    slotDurationMinutes: 60,
     serviceIds: [] as number[],
     facilityIds: [] as number[],
     locations: [] as ClinicLocation[],
@@ -72,7 +73,7 @@ export const ClinicProfilePage = () => {
 
   useEffect(() => {
     if (!isLoggedIn || !isClinic) {
-      navigate({ to: "/signin" });
+      navigate({ to: "/signin", search: { mode: "login" } });
       return;
     }
     Promise.all([clinicApi.getClinicProfile(), clinicApi.getServices(), clinicApi.getFacilities()])
@@ -95,8 +96,9 @@ export const ClinicProfilePage = () => {
           pictures: profileData.pictures ?? [],
           schedule:
             Object.keys(profileData.schedule || {}).length > 0
-              ? { ...emptySchedule(), ...profileData.schedule }
+              ? ({ ...emptySchedule(), ...profileData.schedule } as Record<string, { open: string; close: string; closed: boolean }>)
               : emptySchedule(),
+          slotDurationMinutes: profileData.slot_duration_minutes ?? 60,
           serviceIds: profileData.serviceIds ?? [],
           facilityIds: profileData.facilityIds ?? [],
           locations: profileData.locations ?? [],
@@ -123,6 +125,7 @@ export const ClinicProfilePage = () => {
         linkedin: form.linkedin || undefined,
         pictures: form.pictures,
         schedule: form.schedule,
+        slotDurationMinutes: form.slotDurationMinutes,
         serviceIds: form.serviceIds,
         facilityIds: form.facilityIds,
         locations: form.locations.filter((l) => l.address || l.name || l.city),
@@ -552,6 +555,27 @@ export const ClinicProfilePage = () => {
               <Clock className="w-5 h-5 text-primary" />
               Orari
             </h2>
+            <div className="mb-6">
+              <label className="block text-[14px] font-[600] text-[#494e60] mb-2">
+                Kohëzgjatja e terminit
+              </label>
+              <select
+                value={form.slotDurationMinutes}
+                onChange={(e) => setForm((p) => ({ ...p, slotDurationMinutes: Number(e.target.value) }))}
+                className="h-11 px-3 rounded-lg border border-[#dedede] text-sm text-[#494e60] bg-white focus:outline-none focus:border-primary"
+              >
+                <option value={15}>15 minuta</option>
+                <option value={20}>20 minuta</option>
+                <option value={30}>30 minuta</option>
+                <option value={45}>45 minuta</option>
+                <option value={60}>1 orë</option>
+                <option value={90}>1 orë e 30 min</option>
+                <option value={120}>2 orë</option>
+              </select>
+              <p className="text-[12px] text-[#9fa4b4] mt-1.5">
+                Terminet e lira për rezervim gjenerohen sipas orarit dhe kësaj kohëzgjatjeje.
+              </p>
+            </div>
             <div className="space-y-3">
               {WEEK_DAYS.map((day) => {
                 const daySchedule = form.schedule[day.id] || { open: "08:00", close: "17:00", closed: false };

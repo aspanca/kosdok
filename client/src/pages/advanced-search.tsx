@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
@@ -9,17 +10,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { Monitor, Car, Accessibility, Shield, Baby, Siren, Check, LucideIcon, ChevronDown, ChevronUp, SlidersHorizontal, X, MapPin, Star, Clock } from "lucide-react";
+import { Monitor, Car, Accessibility, Shield, Baby, Siren, Check, LucideIcon, ChevronDown, ChevronUp, SlidersHorizontal, X, MapPin, Star } from "lucide-react";
+import { searchProviders, type ProviderType } from "../lib/api/providers";
+import { useCities } from "../lib/hooks/use-cities";
 
-// Mock results data
-const mockResults = [
-  { id: 1, name: "Dr. Arben Krasniqi", specialty: "Kardiolog", location: "Prishtinë", rating: 4.9, reviews: 127, experience: "15+ vite", available: true, image: null },
-  { id: 2, name: "Klinika Rezonanca", specialty: "Diagnostikë", location: "Prishtinë", rating: 4.8, reviews: 89, experience: null, available: true, image: null },
-  { id: 3, name: "Dr. Fjolla Berisha", specialty: "Dermatolog", location: "Prizren", rating: 4.7, reviews: 64, experience: "8 vite", available: false, image: null },
-  { id: 4, name: "Spitali Amerikan", specialty: "Spital i përgjithshëm", location: "Prishtinë", rating: 4.6, reviews: 234, experience: null, available: true, image: null },
-  { id: 5, name: "Dr. Besnik Gashi", specialty: "Ortoped", location: "Gjakovë", rating: 4.5, reviews: 45, experience: "12 vite", available: true, image: null },
-  { id: 6, name: "Dr. Lindita Morina", specialty: "Pediatre", location: "Ferizaj", rating: 4.8, reviews: 112, experience: "10 vite", available: true, image: null },
-];
+function categoryToType(category: string): ProviderType | undefined {
+  if (category === "hospital" || category === "clinic") return "clinic";
+  if (category === "doctor") return "doctor";
+  return undefined;
+}
 
 export const AdvancedSearchPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,6 +34,18 @@ export const AdvancedSearchPage = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [isSearchBarCollapsed, setIsSearchBarCollapsed] = useState(false);
+  const { data: cities = [] } = useCities();
+
+  const { data: results = [], isLoading: resultsLoading } = useQuery({
+    queryKey: ["providers", "advanced", searchQuery, category, location],
+    queryFn: () =>
+      searchProviders({
+        q: searchQuery || undefined,
+        type: categoryToType(category),
+        city: location || undefined,
+      }),
+    enabled: hasSearched,
+  });
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -285,14 +296,11 @@ export const AdvancedSearchPage = () => {
                     <SelectValue placeholder="Zgjidhni qytetin" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="prishtina">Prishtinë</SelectItem>
-                    <SelectItem value="prizren">Prizren</SelectItem>
-                    <SelectItem value="gjakova">Gjakovë</SelectItem>
-                    <SelectItem value="peja">Pejë</SelectItem>
-                    <SelectItem value="mitrovica">Mitrovicë</SelectItem>
-                    <SelectItem value="ferizaj">Ferizaj</SelectItem>
-                    <SelectItem value="gjilan">Gjilan</SelectItem>
-                    <SelectItem value="podujeva">Podujevë</SelectItem>
+                    {cities.map((city) => (
+                      <SelectItem key={city.id} value={city.name}>
+                        {city.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -474,7 +482,7 @@ export const AdvancedSearchPage = () => {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-[18px] sm:text-[20px] font-bold text-[#374151]">
-                  {mockResults.length} rezultate
+                  {resultsLoading ? "Duke kërkuar..." : `${results.length} rezultate`}
                 </h2>
                 <p className="text-[13px] sm:text-[14px] text-[#6b7280]">
                   {searchQuery ? `Për "${searchQuery}"` : "Të gjitha rezultatet"}
@@ -484,58 +492,68 @@ export const AdvancedSearchPage = () => {
             </div>
 
             {/* Results Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {mockResults.map((result) => (
-                <Link
-                  key={result.id}
-                  to="/hospital"
-                  className="bg-white border border-[#e5e7eb] rounded-xl p-4 hover:shadow-lg hover:border-primary/30 transition-all duration-200 group"
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Avatar */}
-                    <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center text-primary text-[18px] font-bold shrink-0">
-                      {result.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      {/* Name & Availability */}
-                      <div className="flex items-start justify-between gap-2">
+            {!resultsLoading && results.length === 0 ? (
+              <div className="py-12 text-center text-[#9fa4b4]">
+                Nuk u gjetën rezultate. Provoni filtra të tjerë.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {results.map((result) => (
+                  <Link
+                    key={`${result.type}-${result.id}`}
+                    to={result.type === "doctor" ? "/doctor/$doctorId" : "/hospital/$clinicId"}
+                    params={
+                      result.type === "doctor"
+                        ? { doctorId: String(result.id) }
+                        : { clinicId: String(result.id) }
+                    }
+                    className="bg-white border border-[#e5e7eb] rounded-xl p-4 hover:shadow-lg hover:border-primary/30 transition-all duration-200 group"
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Avatar */}
+                      {result.image ? (
+                        <img
+                          src={result.image}
+                          alt={result.name}
+                          className="w-14 h-14 rounded-xl object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center text-primary text-[18px] font-bold shrink-0">
+                          {result.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        {/* Name */}
                         <h3 className="text-[15px] font-bold text-[#374151] group-hover:text-primary transition-colors truncate">
-                          {result.name}
+                          {result.type === "doctor" ? `Dr. ${result.name}` : result.name}
                         </h3>
-                        {result.available && (
-                          <span className="shrink-0 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                            Hapur
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Specialty */}
-                      <p className="text-[13px] text-[#6b7280] mt-0.5">{result.specialty}</p>
-                      
-                      {/* Meta */}
-                      <div className="flex items-center gap-3 mt-2 text-[12px] text-[#9ca3af]">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5" />
-                          {result.location}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                          {result.rating}
-                          <span className="text-[#c4c4c4]">({result.reviews})</span>
-                        </span>
-                        {result.experience && (
+
+                        {/* Specialty */}
+                        <p className="text-[13px] text-[#6b7280] mt-0.5">
+                          {result.specialty || (result.type === "clinic" ? "Klinikë" : "")}
+                        </p>
+
+                        {/* Meta */}
+                        <div className="flex items-center gap-3 mt-2 text-[12px] text-[#9ca3af]">
                           <span className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" />
-                            {result.experience}
+                            <MapPin className="w-3.5 h-3.5" />
+                            {result.city || "Kosovë"}
                           </span>
-                        )}
+                          {result.rating != null && (
+                            <span className="flex items-center gap-1">
+                              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                              {result.rating}
+                              <span className="text-[#c4c4c4]">({result.reviewCount})</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

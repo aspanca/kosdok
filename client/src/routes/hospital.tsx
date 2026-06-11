@@ -5,5 +5,5 @@ import { Hospital } from "../pages/hospital";
 export const hospitalRoute = createRoute({
     getParentRoute: () => rootRoute,
     component: Hospital,
-    path: "/hospital",
+    path: "/hospital/$clinicId",
 });

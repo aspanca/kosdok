@@ -30,6 +30,7 @@ export const clinicProfileSchema = z
     linkedin: z.string().optional(),
     pictures: z.array(z.string().url()).optional(),
     schedule: z.record(z.string(), scheduleDaySchema).optional(),
+    slotDurationMinutes: z.number().int().min(10).max(240).optional(),
     serviceIds: z.array(z.number()).optional(),
     facilityIds: z.array(z.number()).optional(),
     locations: z.array(locationSchema).optional(),

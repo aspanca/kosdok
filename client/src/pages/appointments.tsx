@@ -1,66 +1,39 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, getUserDisplayName, getUserInitials, getUserPicture } from "../context/auth-context";
 import { Button } from "../components/ui/button";
+import { getMyAppointments, cancelAppointment, type Appointment } from "../lib/api/appointments";
 
-// Mock appointments data
-const mockAppointments = [
-  {
-    id: "1",
-    doctorName: "Dr. Alban Gashi",
-    specialty: "Dermatolog",
-    clinic: "Spitali Amerikan",
-    date: "12 Shkurt 2026",
-    time: "10:00",
-    status: "upcoming",
-    image: "https://img.freepik.com/free-photo/portrait-hansome-young-male-doctor-man_171337-5068.jpg",
-  },
-  {
-    id: "2",
-    doctorName: "Dr. Leonora Berisha",
-    specialty: "Kardiolog",
-    clinic: "Vita Hospital",
-    date: "18 Shkurt 2026",
-    time: "14:30",
-    status: "upcoming",
-    image: "https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg",
-  },
-  {
-    id: "3",
-    doctorName: "Dr. Arben Krasniqi",
-    specialty: "Ortoped",
-    clinic: "Q.D.T. Rezonanca",
-    date: "5 Janar 2026",
-    time: "09:00",
-    status: "completed",
-    image: "https://img.freepik.com/free-photo/doctor-with-his-arms-crossed-white-background_1368-5790.jpg",
-  },
-  {
-    id: "4",
-    doctorName: "Dr. Fitore Gashi",
-    specialty: "Pediatër",
-    clinic: "Spitali Amerikan",
-    date: "20 Dhjetor 2025",
-    time: "11:30",
-    status: "completed",
-    image: "https://img.freepik.com/free-photo/beautiful-young-female-doctor-looking-camera-office_1301-7807.jpg",
-  },
-  {
-    id: "5",
-    doctorName: "Dr. Besnik Hoxha",
-    specialty: "Neurolog",
-    clinic: "Vita Hospital",
-    date: "8 Janar 2026",
-    time: "15:00",
-    status: "cancelled",
-    image: "https://img.freepik.com/free-photo/front-view-male-doctor-medical-suit_23-2148453467.jpg",
-  },
-];
+const DOCTOR_FALLBACK_IMG = "https://img.freepik.com/free-photo/portrait-hansome-young-male-doctor-man_171337-5068.jpg";
+
+function formatAppointmentDate(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString("sq-AL", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function tabOf(appointment: Appointment): "upcoming" | "completed" | "cancelled" {
+  if (appointment.status === "pending" || appointment.status === "confirmed") return "upcoming";
+  return appointment.status;
+}
 
 export const AppointmentsPage = () => {
   const { user, isLoggedIn, logout } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"upcoming" | "completed" | "cancelled">("upcoming");
+
+  const { data: appointments = [], isLoading } = useQuery({
+    queryKey: ["my-appointments"],
+    queryFn: getMyAppointments,
+    enabled: isLoggedIn,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelAppointment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-appointments"] });
+    },
+  });
 
   // Redirect if not logged in
   if (!isLoggedIn) {
@@ -91,12 +64,14 @@ export const AppointmentsPage = () => {
     { to: "/my-reviews", label: "Vlerësimet e mia", icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z", active: false },
   ];
 
-  const filteredAppointments = mockAppointments.filter((apt) => apt.status === activeTab);
+  const filteredAppointments = appointments.filter((apt) => tabOf(apt) === activeTab);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "upcoming":
+      case "pending":
         return <span className="px-3 py-1 bg-primary/10 text-primary text-[12px] font-[600]">Në pritje</span>;
+      case "confirmed":
+        return <span className="px-3 py-1 bg-[#7ED321]/10 text-[#5fae12] text-[12px] font-[600]">Konfirmuar</span>;
       case "completed":
         return <span className="px-3 py-1 bg-[#7ED321]/10 text-[#7ED321] text-[12px] font-[600]">Përfunduar</span>;
       case "cancelled":
@@ -177,9 +152,9 @@ export const AppointmentsPage = () => {
                 <h2 className="text-[18px] font-[600] text-[#494e60] mb-4">Takimet e mia</h2>
                 <div className="flex gap-1 bg-[#f8f8f8] p-1">
                   {[
-                    { key: "upcoming", label: "Në pritje", count: mockAppointments.filter((a) => a.status === "upcoming").length },
-                    { key: "completed", label: "Përfunduar", count: mockAppointments.filter((a) => a.status === "completed").length },
-                    { key: "cancelled", label: "Anuluar", count: mockAppointments.filter((a) => a.status === "cancelled").length },
+                    { key: "upcoming", label: "Në pritje", count: appointments.filter((a) => tabOf(a) === "upcoming").length },
+                    { key: "completed", label: "Përfunduar", count: appointments.filter((a) => tabOf(a) === "completed").length },
+                    { key: "cancelled", label: "Anuluar", count: appointments.filter((a) => tabOf(a) === "cancelled").length },
                   ].map((tab) => (
                     <button
                       key={tab.key}
@@ -198,7 +173,9 @@ export const AppointmentsPage = () => {
 
               {/* Appointments List */}
               <div className="divide-y divide-[#dedede]">
-                {filteredAppointments.length === 0 ? (
+                {isLoading ? (
+                  <div className="p-12 text-center text-[#9fa4b4]">Duke ngarkuar...</div>
+                ) : filteredAppointments.length === 0 ? (
                   <div className="p-12 text-center">
                     <svg className="w-16 h-16 mx-auto mb-4 text-[#dedede]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -217,8 +194,8 @@ export const AppointmentsPage = () => {
                         {/* Doctor Image */}
                         <div className="w-16 h-16 flex-shrink-0 overflow-hidden">
                           <img
-                            src={appointment.image}
-                            alt={appointment.doctorName}
+                            src={appointment.image || DOCTOR_FALLBACK_IMG}
+                            alt={appointment.providerName}
                             className="w-full h-full object-cover"
                           />
                         </div>
@@ -227,8 +204,12 @@ export const AppointmentsPage = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-4 mb-2">
                             <div>
-                              <h3 className="text-[15px] font-[600] text-[#494e60]">{appointment.doctorName}</h3>
-                              <p className="text-[13px] text-[#9fa4b4]">{appointment.specialty} • {appointment.clinic}</p>
+                              <h3 className="text-[15px] font-[600] text-[#494e60]">
+                                {appointment.providerType === "doctor" ? `Dr. ${appointment.providerName}` : appointment.providerName}
+                              </h3>
+                              <p className="text-[13px] text-[#9fa4b4]">
+                                {[appointment.specialty, appointment.city].filter(Boolean).join(" • ")}
+                              </p>
                             </div>
                             {getStatusBadge(appointment.status)}
                           </div>
@@ -238,7 +219,7 @@ export const AppointmentsPage = () => {
                               <svg className="w-4 h-4 text-[#9fa4b4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
-                              {appointment.date}
+                              {formatAppointmentDate(appointment.date)}
                             </span>
                             <span className="flex items-center gap-1.5">
                               <svg className="w-4 h-4 text-[#9fa4b4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -249,19 +230,28 @@ export const AppointmentsPage = () => {
                           </div>
 
                           {/* Actions */}
-                          {appointment.status === "upcoming" && (
+                          {tabOf(appointment) === "upcoming" && (
                             <div className="flex gap-2 mt-3">
-                              <Button className="h-9 px-4 bg-primary hover:bg-primary/90 text-white text-[12px] font-[600]">
-                                Konfirmo
-                              </Button>
-                              <Button className="h-9 px-4 bg-white border border-[#dedede] text-[#494e60] text-[12px] font-[600] hover:bg-[#f8f8f8]">
-                                Anulo
+                              <Button
+                                onClick={() => cancelMutation.mutate(appointment.id)}
+                                disabled={cancelMutation.isPending}
+                                className="h-9 px-4 bg-white border border-[#dedede] text-[#494e60] text-[12px] font-[600] hover:bg-[#f8f8f8] disabled:opacity-50"
+                              >
+                                {cancelMutation.isPending && cancelMutation.variables === appointment.id ? "Duke anuluar..." : "Anulo"}
                               </Button>
                             </div>
                           )}
                           {appointment.status === "completed" && (
                             <div className="mt-3">
-                              <Link to="/doctor" className="text-[13px] font-[600] text-primary hover:underline">
+                              <Link
+                                to={appointment.providerType === "doctor" ? "/doctor/$doctorId" : "/hospital/$clinicId"}
+                                params={
+                                  appointment.providerType === "doctor"
+                                    ? { doctorId: String(appointment.providerId) }
+                                    : { clinicId: String(appointment.providerId) }
+                                }
+                                className="text-[13px] font-[600] text-primary hover:underline"
+                              >
                                 Lër vlerësim →
                               </Link>
                             </div>
