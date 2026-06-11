@@ -7,10 +7,10 @@ import { ReactComponent as LabSvg } from "./assets/lab.svg";
 import { ReactComponent as MedicationSvg } from "./assets/medication.svg";
 
 export const HomepageCategories = () => {
-  const categories = [
-    { icon: <HospitalSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Spitalet", to: "/hospital" },
-    { icon: <ClinicsSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Klinikat", to: "/results" },
-    { icon: <DoctorSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Doktoret", to: "/doctor" },
+  const categories: { icon: JSX.Element; title: string; to: string; search?: { type: "clinic" | "doctor" } }[] = [
+    { icon: <HospitalSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Spitalet", to: "/results", search: { type: "clinic" } },
+    { icon: <ClinicsSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Klinikat", to: "/results", search: { type: "clinic" } },
+    { icon: <DoctorSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Doktoret", to: "/results", search: { type: "doctor" } },
     { icon: <LabSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Laboratorët", to: "/results" },
     { icon: <MedicationSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Barnatoret", to: "/results" },
     { icon: <BloodSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Dhuro Gjak", to: "/donate-blood" },
@@ -28,6 +28,7 @@ export const HomepageCategories = () => {
           <Link
             key={index}
             to={category.to}
+            search={category.search}
             className="flex-shrink-0 w-[140px] sm:w-[160px] md:w-auto snap-start"
           >
             <div className="group bg-white border border-gray-100 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-xl hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 flex flex-col items-center cursor-pointer">

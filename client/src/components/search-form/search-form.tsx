@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
@@ -17,10 +18,20 @@ export const SearchForm = () => {
   const navigate = useNavigate();
   const { data: services = [] } = useServices();
   const { data: cities = [] } = useCities();
+  const [query, setQuery] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [city, setCity] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate({ to: "/results" });
+    navigate({
+      to: "/results",
+      search: {
+        q: query || undefined,
+        serviceId: serviceId ? Number(serviceId) : undefined,
+        city: city || undefined,
+      },
+    });
   };
 
   return (
@@ -29,6 +40,8 @@ export const SearchForm = () => {
         {/* Search Input */}
         <div className="flex-1">
           <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder={t("searchForm.placeholder")}
             aria-label={t("searchForm.submit")}
             className="h-12 text-base"
@@ -37,7 +50,7 @@ export const SearchForm = () => {
 
         {/* Category Select - from backend */}
         <div className="sm:w-48">
-          <Select>
+          <Select value={serviceId} onValueChange={setServiceId}>
             <SelectTrigger className="h-12">
               <SelectValue placeholder={t("searchForm.categoryPlaceholder")} />
             </SelectTrigger>
@@ -53,13 +66,13 @@ export const SearchForm = () => {
 
         {/* Location Select - from backend */}
         <div className="sm:w-44">
-          <Select>
+          <Select value={city} onValueChange={setCity}>
             <SelectTrigger className="h-12">
               <SelectValue placeholder={t("searchForm.locationPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {cities.map((c) => (
-                <SelectItem key={c.id} value={String(c.id)}>
+                <SelectItem key={c.id} value={c.name}>
                   {c.name}
                 </SelectItem>
               ))}

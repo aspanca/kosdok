@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, isPatientUser } from "../../context/auth-context";
+import { getSlots, type ProviderType } from "../../lib/api/providers";
+import { createAppointment } from "../../lib/api/appointments";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Calendar, Clock, ChevronRight, X, Check, Shield } from "lucide-react";
 
 interface AppointmentBookingProps {
   entityType: "doctor" | "clinic" | "hospital";
+  entityId: number;
   entityName: string;
   entityImage?: string;
   specialty?: string;
 }
-
-const timeSlots = ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"];
 
 const appointmentReasons = [
   { id: "first", label: "Vizitë e parë" },
@@ -23,13 +25,22 @@ const appointmentReasons = [
   { id: "other", label: "Tjetër" },
 ];
 
+function toDateParam(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export const AppointmentBooking = ({
-  entityType: _entityType,
+  entityType,
+  entityId,
   entityName,
   entityImage,
 }: AppointmentBookingProps) => {
-  void _entityType;
+  const providerType: ProviderType = entityType === "doctor" ? "doctor" : "clinic";
   const { isLoggedIn, user } = useAuth();
+  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [bookingSuccess, setBookingSuccess] = useState(false);
@@ -44,15 +55,43 @@ export const AppointmentBooking = ({
     email: "",
   });
 
+  const selectedDate = formData.dateObj ? toDateParam(formData.dateObj) : null;
+
+  const { data: timeSlots = [], isLoading: slotsLoading } = useQuery({
+    queryKey: ["slots", providerType, entityId, selectedDate],
+    queryFn: () => getSlots(providerType, entityId, selectedDate!),
+    enabled: isModalOpen && !!selectedDate,
+  });
+
+  const bookingMutation = useMutation({
+    mutationFn: createAppointment,
+    onSuccess: () => {
+      setBookingSuccess(true);
+      queryClient.invalidateQueries({ queryKey: ["slots", providerType, entityId] });
+      queryClient.invalidateQueries({ queryKey: ["my-appointments"] });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setBookingSuccess(true);
+    if (!selectedDate || !formData.time || bookingMutation.isPending) return;
+    bookingMutation.mutate({
+      providerType,
+      providerId: entityId,
+      date: selectedDate,
+      time: formData.time,
+      reason: formData.reason,
+      notes: formData.notes || undefined,
+      contactPhone: formData.phone || undefined,
+      contactEmail: formData.email || user?.email || undefined,
+    });
   };
 
   const resetAndClose = () => {
     setIsModalOpen(false);
     setBookingSuccess(false);
     setStep(1);
+    bookingMutation.reset();
     setFormData({
       dateObj: null,
       time: "",
@@ -155,7 +194,7 @@ export const AppointmentBooking = ({
                   <Check className="w-7 h-7 sm:w-8 sm:h-8 text-status-success" />
                 </div>
                 <h3 className="text-[16px] sm:text-[18px] font-semibold text-text-primary mb-1">Sukses!</h3>
-                <p className="text-[12px] sm:text-[13px] text-text-muted mb-4">Takimi u caktua me sukses.</p>
+                <p className="text-[12px] sm:text-[13px] text-text-muted mb-4">Kërkesa u dërgua. Do të njoftoheni kur të konfirmohet takimi.</p>
                 <div className="bg-background-page p-3 text-[12px] sm:text-[13px] text-text-primary mb-4 rounded-lg">
                   <strong>{formData.dateObj && formatDateFull(formData.dateObj)}</strong> • {formData.time}
                 </div>
@@ -194,7 +233,7 @@ export const AppointmentBooking = ({
                             <button
                               key={date.toISOString()}
                               type="button"
-                              onClick={() => setFormData({ ...formData, dateObj: date })}
+                              onClick={() => setFormData({ ...formData, dateObj: date, time: "" })}
                               className={`py-2 sm:py-2.5 rounded-lg border text-center transition-all ${
                                 selected 
                                   ? "bg-primary text-white border-primary shadow-md" 
@@ -210,22 +249,30 @@ export const AppointmentBooking = ({
                     </div>
                     <div>
                       <label className="block text-[11px] sm:text-[12px] font-semibold text-text-primary mb-2">🕐 Zgjidhni orën</label>
-                      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                        {timeSlots.map((time) => (
-                          <button
-                            key={time}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, time })}
-                            className={`py-2 sm:py-2.5 rounded-lg border text-[12px] sm:text-[13px] font-medium transition-all ${
-                              formData.time === time 
-                                ? "bg-primary text-white border-primary shadow-md" 
-                                : "border-border-light hover:border-primary/50 text-text-primary bg-white"
-                            }`}
-                          >
-                            {time}
-                          </button>
-                        ))}
-                      </div>
+                      {!formData.dateObj ? (
+                        <p className="text-[12px] text-text-muted">Zgjidhni fillimisht një datë.</p>
+                      ) : slotsLoading ? (
+                        <p className="text-[12px] text-text-muted">Duke ngarkuar terminet...</p>
+                      ) : timeSlots.length === 0 ? (
+                        <p className="text-[12px] text-text-muted">Nuk ka termine të lira për këtë datë.</p>
+                      ) : (
+                        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+                          {timeSlots.map((time) => (
+                            <button
+                              key={time}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, time })}
+                              className={`py-2 sm:py-2.5 rounded-lg border text-[12px] sm:text-[13px] font-medium transition-all ${
+                                formData.time === time
+                                  ? "bg-primary text-white border-primary shadow-md"
+                                  : "border-border-light hover:border-primary/50 text-text-primary bg-white"
+                              }`}
+                            >
+                              {time}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -304,6 +351,11 @@ export const AppointmentBooking = ({
                 )}
 
                 {/* Footer */}
+                {bookingMutation.isError && (
+                  <p className="px-4 sm:px-5 pb-2 text-[12px] text-status-error">
+                    {bookingMutation.error instanceof Error ? bookingMutation.error.message : "Diçka shkoi gabim"}
+                  </p>
+                )}
                 <div className="sticky bottom-0 bg-white border-t border-border-light px-4 py-3 sm:px-5 sm:py-4 flex gap-2 sm:gap-3">
                   {step > 1 && (
                     <Button type="button" onClick={() => setStep(step - 1)} className="flex-1 h-10 sm:h-11 bg-background-page text-text-primary text-[12px] sm:text-[13px] font-semibold hover:bg-border-light rounded-lg">
@@ -320,8 +372,8 @@ export const AppointmentBooking = ({
                       Vazhdo →
                     </Button>
                   ) : (
-                    <Button type="submit" className="flex-1 h-10 sm:h-11 bg-primary text-white text-[12px] sm:text-[13px] font-semibold rounded-lg">
-                      ✓ Konfirmo takimin
+                    <Button type="submit" disabled={bookingMutation.isPending} className="flex-1 h-10 sm:h-11 bg-primary text-white text-[12px] sm:text-[13px] font-semibold rounded-lg disabled:opacity-50">
+                      {bookingMutation.isPending ? "Duke dërguar..." : "✓ Konfirmo takimin"}
                     </Button>
                   )}
                 </div>

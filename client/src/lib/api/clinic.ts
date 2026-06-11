@@ -47,6 +47,7 @@ export type ClinicProfile = {
   linkedin: string | null;
   pictures: string[];
   schedule: Record<string, ScheduleDay>;
+  slot_duration_minutes?: number;
   serviceIds: number[];
   facilityIds: number[];
   locations: ClinicLocation[];
@@ -65,6 +66,7 @@ export type ClinicProfileUpdate = {
   linkedin?: string;
   pictures?: string[];
   schedule?: Record<string, ScheduleDay>;
+  slotDurationMinutes?: number;
   serviceIds?: number[];
   facilityIds?: number[];
   locations?: ClinicLocation[];

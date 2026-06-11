@@ -1,57 +1,24 @@
+import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, getUserDisplayName, getUserInitials, getUserPicture } from "../context/auth-context";
 import { Button } from "../components/ui/button";
+import { getMyReviews, updateReview, deleteReview } from "../lib/api/reviews";
 
 // Data URI fallback - no network request, prevents infinite onError loop
 const IMAGE_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect fill='%23e5e7eb' width='64' height='64'/%3E%3Crect fill='%239ca3af' x='24' y='20' width='16' height='16'/%3E%3Crect fill='%239ca3af' x='14' y='42' width='36' height='4' rx='2'/%3E%3C/svg%3E";
 
-// Mock reviews data
-const mockReviews = [
-  {
-    id: "1",
-    entityName: "Dr. Alban Gashi",
-    entityType: "doctor",
-    specialty: "Dermatolog",
-    rating: 5,
-    date: "15 Janar 2026",
-    comment: "Shërbim i shkëlqyer! Mjeku ishte shumë profesional dhe i kujdesshëm. E rekomandoj fuqimisht për të gjithë.",
-    image: "https://img.freepik.com/free-photo/portrait-hansome-young-male-doctor-man_171337-5068.jpg",
-    helpful: 12,
-  },
-  {
-    id: "2",
-    entityName: "Spitali Amerikan",
-    entityType: "hospital",
-    specialty: "Spital",
-    rating: 4,
-    date: "10 Janar 2026",
-    comment: "Eksperiencë shumë e mirë. Koha e pritjes ishte e shkurtër dhe stafi ishte miqësor. Do të kthehem përsëri.",
-    image: "/assets/spitali-amerikan.png",
-    helpful: 8,
-  },
-  {
-    id: "3",
-    entityName: "Dr. Leonora Berisha",
-    entityType: "doctor",
-    specialty: "Kardiolog",
-    rating: 5,
-    date: "5 Dhjetor 2025",
-    comment: "Trajtim i jashtëzakonshëm! Jam shumë i kënaqur me rezultatet. Faleminderit për kujdesin e shkëlqyer.",
-    image: "https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg",
-    helpful: 15,
-  },
-];
-
-const StarRating = ({ rating }: { rating: number }) => {
+const StarRating = ({ rating, onRatingChange }: { rating: number; onRatingChange?: (r: number) => void }) => {
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((star) => (
         <svg
           key={star}
-          className="w-4 h-4"
+          className={`w-4 h-4 ${onRatingChange ? "cursor-pointer" : ""}`}
           viewBox="0 0 20 20"
           fill={rating >= star ? "#FFB800" : "#E0E0E0"}
+          onClick={() => onRatingChange?.(star)}
         >
           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
         </svg>
@@ -60,9 +27,40 @@ const StarRating = ({ rating }: { rating: number }) => {
   );
 };
 
+function formatReviewDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("sq-AL", { day: "numeric", month: "long", year: "numeric" });
+}
+
 export const MyReviewsPage = () => {
   const { user, isLoggedIn, logout } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState({ rating: 0, comment: "" });
+
+  const { data: reviews = [], isLoading } = useQuery({
+    queryKey: ["my-reviews"],
+    queryFn: getMyReviews,
+    enabled: isLoggedIn,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, rating, comment }: { id: number; rating: number; comment: string }) =>
+      updateReview(id, { rating, comment }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+      setEditingId(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteReview,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    },
+  });
 
   // Redirect if not logged in
   if (!isLoggedIn) {
@@ -87,6 +85,11 @@ export const MyReviewsPage = () => {
     navigate({ to: "/" });
   };
 
+  const startEditing = (id: number, rating: number, comment: string) => {
+    setEditingId(id);
+    setEditDraft({ rating, comment });
+  };
+
   const sidebarLinks = [
     { to: "/profile", label: "Profili im", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z", active: false },
     { to: "/appointments", label: "Takimet e mia", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", active: false },
@@ -94,9 +97,8 @@ export const MyReviewsPage = () => {
   ];
 
   // Stats
-  const totalReviews = mockReviews.length;
-  const avgRating = mockReviews.reduce((acc, r) => acc + r.rating, 0) / totalReviews;
-  const totalHelpful = mockReviews.reduce((acc, r) => acc + r.helpful, 0);
+  const totalReviews = reviews.length;
+  const avgRating = totalReviews ? reviews.reduce((acc, r) => acc + r.rating, 0) / totalReviews : 0;
 
   return (
     <div className="min-h-screen bg-[#f8f8f8]">
@@ -164,7 +166,7 @@ export const MyReviewsPage = () => {
           {/* Main Content */}
           <div className="flex-1">
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-white border border-[#dedede] p-5 text-center">
                 <div className="text-[28px] font-[600] text-[#494e60]">{totalReviews}</div>
                 <div className="text-[13px] text-[#9fa4b4]">Vlerësime</div>
@@ -172,10 +174,6 @@ export const MyReviewsPage = () => {
               <div className="bg-white border border-[#dedede] p-5 text-center">
                 <div className="text-[28px] font-[600] text-[#FFB800]">{avgRating.toFixed(1)}</div>
                 <div className="text-[13px] text-[#9fa4b4]">Mesatarja</div>
-              </div>
-              <div className="bg-white border border-[#dedede] p-5 text-center">
-                <div className="text-[28px] font-[600] text-[#7ED321]">{totalHelpful}</div>
-                <div className="text-[13px] text-[#9fa4b4]">Të dobishme</div>
               </div>
             </div>
 
@@ -190,25 +188,27 @@ export const MyReviewsPage = () => {
 
               {/* Reviews List */}
               <div className="divide-y divide-[#dedede]">
-                {mockReviews.length === 0 ? (
+                {isLoading ? (
+                  <div className="p-12 text-center text-[#9fa4b4]">Duke ngarkuar...</div>
+                ) : reviews.length === 0 ? (
                   <div className="p-12 text-center">
                     <svg className="w-16 h-16 mx-auto mb-4 text-[#dedede]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                     </svg>
                     <p className="text-[15px] text-[#9fa4b4]">Nuk keni lënë asnjë vlerësim ende</p>
-                    <Link to="/" className="inline-flex items-center justify-center mt-4 h-10 px-6 bg-primary hover:bg-primary/90 text-white text-[13px] font-[600]">
+                    <Link to="/results" className="inline-flex items-center justify-center mt-4 h-10 px-6 bg-primary hover:bg-primary/90 text-white text-[13px] font-[600]">
                       Gjej mjek
                     </Link>
                   </div>
                 ) : (
-                  mockReviews.map((review) => (
+                  reviews.map((review) => (
                     <div key={review.id} className="p-5 hover:bg-[#fafafa] transition-colors">
                       <div className="flex gap-4">
                         {/* Entity Image */}
                         <div className="w-16 h-16 flex-shrink-0 bg-[#f8f8f8] overflow-hidden">
                           <img
-                            src={review.image}
-                            alt={review.entityName}
+                            src={review.image || IMAGE_PLACEHOLDER}
+                            alt={review.providerName}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
@@ -223,34 +223,75 @@ export const MyReviewsPage = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-4 mb-2">
                             <div>
-                              <h3 className="text-[15px] font-[600] text-[#494e60]">{review.entityName}</h3>
-                              <p className="text-[13px] text-[#9fa4b4]">{review.specialty}</p>
+                              <Link
+                                to={review.providerType === "doctor" ? "/doctor/$doctorId" : "/hospital/$clinicId"}
+                                params={
+                                  review.providerType === "doctor"
+                                    ? { doctorId: String(review.providerId) }
+                                    : { clinicId: String(review.providerId) }
+                                }
+                                className="text-[15px] font-[600] text-[#494e60] hover:text-primary"
+                              >
+                                {review.providerType === "doctor" ? `Dr. ${review.providerName}` : review.providerName}
+                              </Link>
+                              <p className="text-[13px] text-[#9fa4b4]">
+                                {review.specialty || (review.providerType === "clinic" ? "Klinikë" : "")}
+                              </p>
                             </div>
                             <div className="text-right">
-                              <StarRating rating={review.rating} />
-                              <p className="text-[12px] text-[#9fa4b4] mt-1">{review.date}</p>
+                              <StarRating rating={editingId === review.id ? editDraft.rating : review.rating} onRatingChange={editingId === review.id ? (r) => setEditDraft({ ...editDraft, rating: r }) : undefined} />
+                              <p className="text-[12px] text-[#9fa4b4] mt-1">{formatReviewDate(review.createdAt)}</p>
                             </div>
                           </div>
 
-                          <p className="text-[14px] text-[#5e6478] leading-relaxed mb-3">
-                            {review.comment}
-                          </p>
+                          {editingId === review.id ? (
+                            <textarea
+                              value={editDraft.comment}
+                              onChange={(e) => setEditDraft({ ...editDraft, comment: e.target.value })}
+                              rows={3}
+                              className="w-full px-3 py-2 mb-3 rounded border border-[#dedede] text-[14px] text-[#5e6478] focus:outline-none focus:border-primary resize-none"
+                            />
+                          ) : (
+                            <p className="text-[14px] text-[#5e6478] leading-relaxed mb-3">
+                              {review.comment}
+                            </p>
+                          )}
 
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-1.5 text-[13px] text-[#9fa4b4]">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                              </svg>
-                              {review.helpful} e gjetën të dobishme
-                            </span>
-
+                          <div className="flex items-center justify-end">
                             <div className="flex gap-2">
-                              <Button className="h-8 px-3 bg-white border border-[#dedede] text-[#494e60] text-[12px] font-[600] hover:bg-[#f8f8f8]">
-                                Ndrysho
-                              </Button>
-                              <Button className="h-8 px-3 bg-white border border-red-200 text-red-600 text-[12px] font-[600] hover:bg-red-50">
-                                Fshij
-                              </Button>
+                              {editingId === review.id ? (
+                                <>
+                                  <Button
+                                    onClick={() => updateMutation.mutate({ id: review.id, rating: editDraft.rating, comment: editDraft.comment })}
+                                    disabled={updateMutation.isPending || editDraft.rating === 0 || !editDraft.comment.trim()}
+                                    className="h-8 px-3 bg-primary text-white text-[12px] font-[600] hover:bg-primary/90 disabled:opacity-50"
+                                  >
+                                    {updateMutation.isPending ? "Duke ruajtur..." : "Ruaj"}
+                                  </Button>
+                                  <Button
+                                    onClick={() => setEditingId(null)}
+                                    className="h-8 px-3 bg-white border border-[#dedede] text-[#494e60] text-[12px] font-[600] hover:bg-[#f8f8f8]"
+                                  >
+                                    Anulo
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    onClick={() => startEditing(review.id, review.rating, review.comment)}
+                                    className="h-8 px-3 bg-white border border-[#dedede] text-[#494e60] text-[12px] font-[600] hover:bg-[#f8f8f8]"
+                                  >
+                                    Ndrysho
+                                  </Button>
+                                  <Button
+                                    onClick={() => deleteMutation.mutate(review.id)}
+                                    disabled={deleteMutation.isPending}
+                                    className="h-8 px-3 bg-white border border-red-200 text-red-600 text-[12px] font-[600] hover:bg-red-50 disabled:opacity-50"
+                                  >
+                                    {deleteMutation.isPending && deleteMutation.variables === review.id ? "Duke fshirë..." : "Fshij"}
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>

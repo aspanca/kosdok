@@ -1,85 +1,112 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useServices } from "../lib/hooks/use-services";
-import { getServiceIcon } from "../lib/icons";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Share2, 
-  ArrowLeft, 
-  Monitor,
-  Car,
-  Accessibility,
-  Shield,
-  Baby,
-  Siren,
-  CreditCard,
-  Wifi,
-  Check
+import { getServiceIcon, getFacilityIcon } from "../lib/icons";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Share2,
+  ArrowLeft,
+  Check,
 } from "lucide-react";
 import { SocialShare } from "../components/social-share/social-share";
 import { Reviews } from "../components/reviews/reviews";
 import { AppointmentBooking } from "../components/appointment-booking/appointment-booking";
 import { StatusBadge } from "../components/status-badge/status-badge";
+import { getClinicById, searchProviders } from "../lib/api/providers";
+import { getFacilities } from "../lib/api/clinic";
+import type { ScheduleDay } from "../lib/api/clinic";
 
-import SpitaliAmerikanImg from "./assets/spitali-amerikan.png";
-import VitaImg from "./assets/vita.png";
-import RezonancaImg from "./assets/rezonanca.png";
-
-const clinicImages = [
+const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=800&q=80",
-  "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&q=80",
-  "https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=800&q=80",
-  "https://images.unsplash.com/photo-1504439468489-c8920d796a29?w=800&q=80",
 ];
 
-const similarClinics = [
-  {
-    id: 1,
-    name: "Spitali Amerikan",
-    city: "Prishtina",
-    logo: SpitaliAmerikanImg,
-    isOpen: false,
-  },
-  {
-    id: 2,
-    name: "Vita Hospital",
-    city: "Prishtina",
-    logo: VitaImg,
-    isOpen: true,
-  },
-  {
-    id: 3,
-    name: "Q.D.T. Rezonanca",
-    city: "Prishtina",
-    logo: RezonancaImg,
-    isOpen: true,
-  },
+const WEEK_DAYS: { key: string; label: string; dayIndex: number }[] = [
+  { key: "monday", label: "Hëne", dayIndex: 1 },
+  { key: "tuesday", label: "Martë", dayIndex: 2 },
+  { key: "wednesday", label: "Mërkurë", dayIndex: 3 },
+  { key: "thursday", label: "Enjte", dayIndex: 4 },
+  { key: "friday", label: "Premte", dayIndex: 5 },
+  { key: "saturday", label: "Shtunë", dayIndex: 6 },
+  { key: "sunday", label: "Diele", dayIndex: 0 },
 ];
 
-type TabType = "overview" | "services" | "staff" | "schedule";
+function isOpenNow(schedule: Record<string, ScheduleDay>): boolean {
+  const now = new Date();
+  const today = WEEK_DAYS.find((d) => d.dayIndex === now.getDay());
+  const day = today ? schedule[today.key] : undefined;
+  if (!day || day.closed || !day.open || !day.close) return false;
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const [oh, om] = day.open.split(":").map(Number);
+  const [ch, cm] = day.close.split(":").map(Number);
+  return minutes >= oh * 60 + om && minutes < ch * 60 + cm;
+}
+
+type TabType = "overview" | "services" | "schedule";
 
 export const Hospital = () => {
+  const { clinicId } = useParams({ from: "/hospital/$clinicId" });
+  const id = Number(clinicId);
+
+  const { data: clinic, isLoading, isError } = useQuery({
+    queryKey: ["clinic-public", id],
+    queryFn: () => getClinicById(id),
+    enabled: Number.isInteger(id) && id > 0,
+  });
+
   const { data: services = [] } = useServices();
+  const { data: facilities = [] } = useQuery({
+    queryKey: ["facilities"],
+    queryFn: getFacilities,
+  });
+
+  const { data: similar = [] } = useQuery({
+    queryKey: ["similar-clinics", clinic?.city, id],
+    queryFn: () => searchProviders({ type: "clinic", city: clinic?.city ?? undefined }),
+    enabled: !!clinic,
+    select: (providers) => providers.filter((p) => p.id !== id).slice(0, 3),
+  });
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<TabType>("overview");
 
-  const nextImage = () => {
-    setCurrentImageIndex((prev) =>
-      prev === clinicImages.length - 1 ? 0 : prev + 1
+  if (isLoading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center text-[#9fa4b4]">
+        Duke ngarkuar...
+      </div>
     );
+  }
+
+  if (isError || !clinic) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4">
+        <p className="text-[#494e60]">Klinika nuk u gjet.</p>
+        <Link to="/results" className="text-primary hover:underline text-sm">
+          Kthehu te lista
+        </Link>
+      </div>
+    );
+  }
+
+  const clinicName = clinic.clinic_name || clinic.name;
+  const clinicImages = clinic.pictures.length > 0 ? clinic.pictures : FALLBACK_IMAGES;
+  const clinicServices = services.filter((s) => clinic.serviceIds.includes(s.id));
+  const clinicFacilities = facilities.filter((f) => clinic.facilityIds.includes(f.id));
+  const mapQuery = encodeURIComponent([clinic.address, clinic.city, "Kosova"].filter(Boolean).join(", "));
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev === clinicImages.length - 1 ? 0 : prev + 1));
   };
 
   const prevImage = () => {
-    setCurrentImageIndex((prev) =>
-      prev === 0 ? clinicImages.length - 1 : prev - 1
-    );
+    setCurrentImageIndex((prev) => (prev === 0 ? clinicImages.length - 1 : prev - 1));
   };
 
   const tabs: { key: TabType; label: string }[] = [
     { key: "overview", label: "Permbledhja" },
     { key: "services", label: "Sherbimet" },
-    { key: "staff", label: "Stafi Mjeksor" },
     { key: "schedule", label: "Orari" },
   ];
 
@@ -90,7 +117,7 @@ export const Hospital = () => {
         <div className="w-full lg:w-1/2 p-4 lg:p-6">
           {/* Back Link */}
           <Link
-            to="/"
+            to="/results"
             className="inline-flex items-center text-primary hover:text-primary/80 mb-4 text-sm"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
@@ -104,47 +131,53 @@ export const Hospital = () => {
               <div className="md:w-1/2">
                 {/* Status Badge */}
                 <div className="mb-4">
-                  <StatusBadge isOpen={true} />
+                  <StatusBadge isOpen={isOpenNow(clinic.schedule)} />
                 </div>
 
                 {/* Clinic Name */}
                 <h1 className="text-[26px] font-bold tracking-wide text-[#494e60] mb-1">
-                  Spitali Amerikan
+                  {clinicName}
                 </h1>
                 <p className="text-base text-[#5e6478] mb-6">
-                  Prishtinë, Kosove
+                  {[clinic.city, "Kosovë"].filter(Boolean).join(", ")}
                 </p>
 
                 {/* Contact Info */}
                 <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-[#9fa4b4] mb-1">Telefoni:</p>
-                    <p className="text-base font-semibold text-[#494e60]">
-                      +383 49 123 456
-                    </p>
-                  </div>
+                  {clinic.phone && (
+                    <div>
+                      <p className="text-sm text-[#9fa4b4] mb-1">Telefoni:</p>
+                      <p className="text-base font-semibold text-[#494e60]">
+                        {clinic.phone}
+                      </p>
+                    </div>
+                  )}
 
-                  <div>
-                    <p className="text-sm text-[#9fa4b4] mb-1">Email:</p>
-                    <a
-                      href="mailto:spitaliamerikan@gmail.com"
-                      className="text-primary hover:underline"
-                    >
-                      spitaliamerikan@gmail.com
-                    </a>
-                  </div>
+                  {clinic.email && (
+                    <div>
+                      <p className="text-sm text-[#9fa4b4] mb-1">Email:</p>
+                      <a
+                        href={`mailto:${clinic.email}`}
+                        className="text-primary hover:underline"
+                      >
+                        {clinic.email}
+                      </a>
+                    </div>
+                  )}
 
-                  <div>
-                    <p className="text-sm text-[#9fa4b4] mb-1">Website:</p>
-                    <a
-                      href="https://www.spitaliamerikan.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      www.spitaliamerikan.com
-                    </a>
-                  </div>
+                  {clinic.website && (
+                    <div>
+                      <p className="text-sm text-[#9fa4b4] mb-1">Website:</p>
+                      <a
+                        href={clinic.website.startsWith("http") ? clinic.website : `https://${clinic.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {clinic.website}
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 {/* Social Media */}
@@ -161,39 +194,45 @@ export const Hospital = () => {
               <div className="md:w-1/2">
                 <div className="relative rounded-lg overflow-hidden bg-gray-100 aspect-[4/3]">
                   {/* Logo Badge */}
-                  <div className="absolute top-3 left-3 z-10 w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center p-2 overflow-hidden">
-                    <img
-                      src={SpitaliAmerikanImg}
-                      alt="Spitali Amerikan Logo"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
+                  {clinic.logo && (
+                    <div className="absolute top-3 left-3 z-10 w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center p-2 overflow-hidden">
+                      <img
+                        src={clinic.logo}
+                        alt={`${clinicName} Logo`}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  )}
 
                   {/* Main Image */}
                   <img
                     src={clinicImages[currentImageIndex]}
-                    alt={`Clinic view ${currentImageIndex + 1}`}
+                    alt={`${clinicName} ${currentImageIndex + 1}`}
                     className="w-full h-full object-cover"
                   />
 
                   {/* Navigation Arrows */}
-                  <button
-                    onClick={prevImage}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-md"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-gray-600" />
-                  </button>
-                  <button
-                    onClick={nextImage}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-md"
-                  >
-                    <ChevronRight className="w-5 h-5 text-gray-600" />
-                  </button>
+                  {clinicImages.length > 1 && (
+                    <>
+                      <button
+                        onClick={prevImage}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-md"
+                      >
+                        <ChevronLeft className="w-5 h-5 text-gray-600" />
+                      </button>
+                      <button
+                        onClick={nextImage}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-md"
+                      >
+                        <ChevronRight className="w-5 h-5 text-gray-600" />
+                      </button>
 
-                  {/* Image Counter */}
-                  <div className="absolute bottom-3 left-3 bg-black/50 text-white text-sm px-2 py-1 rounded">
-                    {currentImageIndex + 1}/{clinicImages.length}
-                  </div>
+                      {/* Image Counter */}
+                      <div className="absolute bottom-3 left-3 bg-black/50 text-white text-sm px-2 py-1 rounded">
+                        {currentImageIndex + 1}/{clinicImages.length}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -234,57 +273,39 @@ export const Hospital = () => {
               {activeTab === "overview" && (
                 <div>
                   <h2 className="text-lg font-bold text-[#494e60] mb-4">
-                    Njihuni me Spitalin Amerikan
+                    Njihuni me {clinicName}
                   </h2>
-                  <p className="text-sm leading-relaxed text-[#5e6478] mb-4">
-                    Spitali Amerikan në Shqipëri u themelua në Dhjetor 2006 si
-                    spitali i parë privat në vend.
-                  </p>
-                  <p className="text-sm leading-relaxed text-[#5e6478] mb-4">
-                    Filloi aktivitetin e tij në Kardiologji dhe Kardiokirurgji
-                    me rekrutimin e një stafi profesionistësh të huaj me
-                    eksperiencë në këtë fushë dhe me qëllimin që t'ju shërbyer
-                    pacientëve brenda dhe jashtë vendit. Brenda një viti
-                    reduktoi në 85% fluksin e pacientëve kardiakë që linin
-                    Shqipërinë për t'u kuruar jashtë.
-                  </p>
-                  <p className="text-sm leading-relaxed text-[#5e6478] mb-6">
-                    Pas këtij suksesi Spitali Amerikan shpejt zgjeroi
-                    aktivitetin duke u fokusuar në fillim në kirurgji të
-                    përgjithshme, ortopedi, kirurgji e syrit e urologji deri sa
-                    mberriti në kapacitetin e plotë që gëzon sot.
-                  </p>
+                  {clinic.description ? (
+                    <p className="text-sm leading-relaxed text-[#5e6478] mb-6 whitespace-pre-line">
+                      {clinic.description}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-[#9fa4b4] mb-6">Nuk ka përshkrim.</p>
+                  )}
 
                   {/* Amenities Section */}
-                  <div className="border-t border-border pt-5 mt-2">
-                    <h3 className="text-[13px] font-[600] text-text-muted uppercase tracking-wider mb-3">
-                      Lehtësirat
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { icon: Monitor, label: "Konsultim online" },
-                        { icon: Car, label: "Parking" },
-                        { icon: Accessibility, label: "Akses për invalidë" },
-                        { icon: Shield, label: "Pranon sigurim" },
-                        { icon: Baby, label: "Miqësor për fëmijë" },
-                        { icon: Siren, label: "Shërbim urgjence" },
-                        { icon: CreditCard, label: "Kartë krediti" },
-                        { icon: Wifi, label: "Wi-Fi" },
-                      ].map((item) => {
-                        const IconComponent = item.icon;
-                        return (
-                          <span
-                            key={item.label}
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border-light bg-white text-[13px] font-medium text-text-secondary hover:border-primary/30 hover:bg-primary-lightest transition-colors"
-                          >
-                            <IconComponent className="w-4 h-4 text-primary" />
-                            {item.label}
-                            <Check className="w-3.5 h-3.5 text-status-success" />
-                          </span>
-                        );
-                      })}
+                  {clinicFacilities.length > 0 && (
+                    <div className="border-t border-border pt-5 mt-2">
+                      <h3 className="text-[13px] font-[600] text-text-muted uppercase tracking-wider mb-3">
+                        Lehtësirat
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {clinicFacilities.map((facility) => {
+                          const IconComponent = getFacilityIcon(facility.icon);
+                          return (
+                            <span
+                              key={facility.id}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border-light bg-white text-[13px] font-medium text-text-secondary hover:border-primary/30 hover:bg-primary-lightest transition-colors"
+                            >
+                              <IconComponent className="w-4 h-4 text-primary" />
+                              {facility.name}
+                              <Check className="w-3.5 h-3.5 text-status-success" />
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -293,75 +314,33 @@ export const Hospital = () => {
                   <h2 className="text-lg font-bold text-[#494e60] mb-6">
                     Shërbimet Mjekësore
                   </h2>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-6">
-                    {services.map((service) => (
-                      <div
-                        key={service.id}
-                        className="flex flex-col items-center text-center group"
-                      >
-                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                          {(() => {
-                            const Icon = getServiceIcon(service.icon);
-                            return <Icon className="w-7 h-7 text-primary" />;
-                          })()}
-                        </div>
-                        <span className="text-sm text-[#494e60] leading-tight">
-                          {service.name}
-                        </span>
-                        {service.category && (
-                          <span className="text-xs text-[#9fa4b4] mt-0.5 block">
-                            {service.category}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "staff" && (
-                <div>
-                  <h2 className="text-lg font-bold text-[#494e60] mb-6">
-                    Stafi Mjeksor
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
-                    {[
-                      { name: "Dr. Mentodije Alushaj - Rexha", specialty: "Alergolog", img: "https://img.freepik.com/free-photo/portrait-hansome-young-male-doctor-man_171337-5068.jpg" },
-                      { name: "Dr. Ismet Jusufi", specialty: "Aneztesist-Reanimator", img: "https://img.freepik.com/free-photo/medium-shot-doctor-with-crossed-arms_23-2148868679.jpg" },
-                      { name: "Dr. Antigona Hasani", specialty: "Alergolog", img: "https://img.freepik.com/free-photo/woman-doctor-wearing-lab-coat-with-stethoscope-isolated_1303-29791.jpg" },
-                      { name: "Dr. Zekë Zeka Mr. Sci", specialty: "Alergolog", img: "https://img.freepik.com/free-photo/portrait-successful-mid-adult-doctor-with-crossed-arms_1262-12865.jpg" },
-                      { name: "Dr. Feim Muçolli", specialty: "Aneztesist-Reanimator", img: "https://img.freepik.com/free-photo/female-doctor-hospital-with-stethoscope_23-2148827776.jpg" },
-                      { name: "Dr. Arben Krasniqi", specialty: "Kardiolog", img: "https://img.freepik.com/free-photo/doctor-with-his-arms-crossed-white-background_1368-5790.jpg" },
-                      { name: "Dr. Besnik Hoxha", specialty: "Gastroenterolog", img: "https://img.freepik.com/free-photo/pleased-young-female-doctor-wearing-medical-robe-stethoscope-around-neck-standing-with-closed-posture_409827-254.jpg" },
-                      { name: "Dr. Fitore Berisha", specialty: "Endokrinolog", img: "https://img.freepik.com/free-photo/beautiful-young-female-doctor-looking-camera-office_1301-7807.jpg" },
-                      { name: "Dr. Driton Morina", specialty: "Hematolog", img: "https://img.freepik.com/free-photo/front-view-male-doctor-medical-suit_23-2148453467.jpg" },
-                      { name: "Dr. Leonora Gashi", specialty: "Neurolog", img: "https://img.freepik.com/free-photo/female-doctor-lab-coat-with-stethoscope_23-2148827769.jpg" },
-                    ].map((doctor, index) => (
-                      <div
-                        key={index}
-                        className="group cursor-pointer flex flex-col items-center text-center"
-                      >
-                        {/* Photo Container - Rounded */}
-                        <div className="relative w-28 h-28 mb-4">
-                          <div className="w-full h-full rounded-full overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow duration-300 ring-4 ring-white">
-                            <img
-                              src={doctor.img}
-                              alt={doctor.name}
-                              className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-300"
-                            />
+                  {clinicServices.length === 0 ? (
+                    <p className="text-sm text-[#9fa4b4]">Nuk ka shërbime të listuara.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-6">
+                      {clinicServices.map((service) => (
+                        <div
+                          key={service.id}
+                          className="flex flex-col items-center text-center group"
+                        >
+                          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            {(() => {
+                              const Icon = getServiceIcon(service.icon);
+                              return <Icon className="w-7 h-7 text-primary" />;
+                            })()}
                           </div>
+                          <span className="text-sm text-[#494e60] leading-tight">
+                            {service.name}
+                          </span>
+                          {service.category && (
+                            <span className="text-xs text-[#9fa4b4] mt-0.5 block">
+                              {service.category}
+                            </span>
+                          )}
                         </div>
-                        
-                        {/* Info */}
-                        <h3 className="text-[15px] font-semibold text-[#494e60] leading-tight mb-1 group-hover:text-primary transition-colors">
-                          {doctor.name}
-                        </h3>
-                        <p className="text-[13px] text-[#898e9f]">
-                          {doctor.specialty}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -371,18 +350,15 @@ export const Hospital = () => {
                     Orari i punes
                   </h2>
                   <div className="space-y-3">
-                    {[
-                      { day: "Hene", hours: "08:00 - 17:00", dayIndex: 1 },
-                      { day: "Marte", hours: "08:00 - 17:00", dayIndex: 2 },
-                      { day: "Merkure", hours: "08:00 - 17:00", dayIndex: 3 },
-                      { day: "Enjte", hours: "08:00 - 17:00", dayIndex: 4 },
-                      { day: "Premte", hours: "08:00 - 17:00", dayIndex: 5 },
-                      { day: "Shtune", hours: "08:00 - 17:00", dayIndex: 6 },
-                      { day: "Diele", hours: "08:00 - 17:00", dayIndex: 0 },
-                    ].map((schedule) => {
-                      const isToday = new Date().getDay() === schedule.dayIndex;
+                    {WEEK_DAYS.map((weekDay) => {
+                      const day = clinic.schedule[weekDay.key];
+                      const isToday = new Date().getDay() === weekDay.dayIndex;
+                      const hours =
+                        !day || day.closed || !day.open || !day.close
+                          ? "Mbyllur"
+                          : `${day.open} - ${day.close}`;
                       return (
-                        <div key={schedule.day} className="flex items-center gap-6">
+                        <div key={weekDay.key} className="flex items-center gap-6">
                           <div
                             className={`w-28 py-2 px-4 rounded text-sm font-medium ${
                               isToday
@@ -390,14 +366,14 @@ export const Hospital = () => {
                                 : "bg-gray-100 text-[#494e60]"
                             }`}
                           >
-                            {schedule.day}
+                            {weekDay.label}
                           </div>
                           <span
                             className={`text-sm ${
                               isToday ? "text-primary font-medium" : "text-[#494e60]"
                             }`}
                           >
-                            {schedule.hours}
+                            {hours}
                           </span>
                         </div>
                       );
@@ -412,51 +388,60 @@ export const Hospital = () => {
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             <AppointmentBooking
               entityType="hospital"
-              entityName="Spitali Amerikan"
-              entityImage={SpitaliAmerikanImg}
+              entityId={clinic.id}
+              entityName={clinicName}
+              entityImage={clinic.logo ?? undefined}
             />
-            <Reviews entityType="hospital" entityName="Spitali Amerikan" />
+            <Reviews entityType="hospital" entityId={clinic.id} entityName={clinicName} />
           </div>
 
           {/* Similar Clinics Section */}
-          <div className="mt-8">
-            <h3 className="text-[26px] font-[550] leading-[1.15] tracking-[0.72px] text-[#242936] mb-4">
-              Të ngjashme
-            </h3>
-            <div className="flex flex-wrap -mx-3">
-              {similarClinics.map((clinic) => (
-                <div key={clinic.id} className="p-3 w-full sm:w-1/2 lg:w-1/3">
-                  <div className="border border-solid p-5 shadow-lg h-[250px] flex flex-col justify-center items-center relative cursor-pointer hover:shadow-xl transition-shadow">
-                    {/* Status Badge */}
-                    <div className="absolute top-1 left-1">
-                      <StatusBadge isOpen={clinic.isOpen} />
+          {similar.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-[26px] font-[550] leading-[1.15] tracking-[0.72px] text-[#242936] mb-4">
+                Të ngjashme
+              </h3>
+              <div className="flex flex-wrap -mx-3">
+                {similar.map((c) => (
+                  <Link
+                    key={c.id}
+                    to="/hospital/$clinicId"
+                    params={{ clinicId: String(c.id) }}
+                    className="p-3 w-full sm:w-1/2 lg:w-1/3 block"
+                  >
+                    <div className="border border-solid p-5 shadow-lg h-[250px] flex flex-col justify-center items-center relative cursor-pointer hover:shadow-xl transition-shadow">
+                      {/* Logo */}
+                      {c.image ? (
+                        <img
+                          src={c.image}
+                          alt={c.name}
+                          className="max-w-[100%] max-h-[100%]"
+                        />
+                      ) : (
+                        <span className="text-[40px] font-bold text-[#dde3ee]">
+                          {c.name.charAt(0)}
+                        </span>
+                      )}
                     </div>
-
-                    {/* Logo */}
-                    <img
-                      src={clinic.logo}
-                      alt={clinic.name}
-                      className="max-w-[100%] max-h-[100%]"
-                    />
-                  </div>
-                  <div className="py-3">
-                    <h4 className="text-[14px] font-normal tracking-[0.39px] text-[#898e9f]">
-                      {clinic.city}
-                    </h4>
-                    <h1 className="text-[20px] font-[600] tracking-[0.56px] text-[#818798]">
-                      {clinic.name}
-                    </h1>
-                  </div>
-                </div>
-              ))}
+                    <div className="py-3">
+                      <h4 className="text-[14px] font-normal tracking-[0.39px] text-[#898e9f]">
+                        {c.city || "Kosovë"}
+                      </h4>
+                      <h1 className="text-[20px] font-[600] tracking-[0.56px] text-[#818798]">
+                        {c.name}
+                      </h1>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right - Map */}
         <div className="w-full lg:w-1/2 h-[400px] lg:h-auto lg:min-h-screen">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2934.5447754789397!2d21.15694307677631!3d42.66329621292626!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x13549ee605110927%3A0x9365bfdf385eb95a!2sAmerican%20Hospital!5e0!3m2!1sen!2s!4v1707234567890!5m2!1sen!2s"
+            src={`https://www.google.com/maps?q=${mapQuery}&output=embed`}
             width="100%"
             height="100%"
             style={{ border: 0 }}
