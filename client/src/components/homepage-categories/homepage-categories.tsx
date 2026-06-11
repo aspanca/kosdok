@@ -1,4 +1,7 @@
-import { Link } from "@tanstack/react-router";
+"use client";
+
+import type React from "react";
+import Link from "next/link";
 import { ReactComponent as BloodSvg } from "./assets/blood-drop.svg";
 import { ReactComponent as DoctorSvg } from "./assets/doctor.svg";
 import { ReactComponent as HospitalSvg } from "./assets/hospital.svg";
@@ -7,7 +10,7 @@ import { ReactComponent as LabSvg } from "./assets/lab.svg";
 import { ReactComponent as MedicationSvg } from "./assets/medication.svg";
 
 export const HomepageCategories = () => {
-  const categories: { icon: JSX.Element; title: string; to: string; search?: { type: "clinic" | "doctor" } }[] = [
+  const categories: { icon: React.JSX.Element; title: string; to: string; search?: { type: "clinic" | "doctor" } }[] = [
     { icon: <HospitalSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Spitalet", to: "/results", search: { type: "clinic" } },
     { icon: <ClinicsSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Klinikat", to: "/results", search: { type: "clinic" } },
     { icon: <DoctorSvg className="w-12 h-12 sm:w-14 sm:h-14" />, title: "Doktoret", to: "/results", search: { type: "doctor" } },
@@ -27,8 +30,11 @@ export const HomepageCategories = () => {
         {categories.map((category, index) => (
           <Link
             key={index}
-            to={category.to}
-            search={category.search}
+            href={
+              category.search
+                ? { pathname: category.to, query: category.search }
+                : category.to
+            }
             className="flex-shrink-0 w-[140px] sm:w-[160px] md:w-auto snap-start"
           >
             <div className="group bg-white border border-gray-100 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-xl hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 flex flex-col items-center cursor-pointer">

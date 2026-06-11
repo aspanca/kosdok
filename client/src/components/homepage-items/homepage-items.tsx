@@ -1,4 +1,6 @@
-import { Link } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
 import type { ProviderSummary } from "../../lib/api/providers";
 
 type HomePageItemsProps = {
@@ -26,8 +28,11 @@ export const HomePageItems = (props: HomePageItemsProps) => {
           {title}
         </h2>
         <Link
-          to="/results"
-          search={{ type: link.type }}
+          href={
+            link.type !== undefined
+              ? { pathname: "/results", query: { type: link.type } }
+              : "/results"
+          }
           className="text-sm sm:text-base text-primary hover:text-primary/80 font-medium transition-colors"
         >
           {link.label} →
@@ -39,11 +44,10 @@ export const HomePageItems = (props: HomePageItemsProps) => {
         {items.map((item) => (
           <Link
             key={`${item.type}-${item.id}`}
-            to={item.type === "doctor" ? "/doctor/$doctorId" : "/hospital/$clinicId"}
-            params={
+            href={
               item.type === "doctor"
-                ? { doctorId: String(item.id) }
-                : { clinicId: String(item.id) }
+                ? `/doctor/${String(item.id)}`
+                : `/hospital/${String(item.id)}`
             }
             className="flex-shrink-0 w-[260px] sm:w-[280px] md:w-auto snap-start"
           >

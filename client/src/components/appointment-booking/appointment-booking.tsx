@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, isPatientUser } from "../../context/auth-context";
 import { getSlots, type ProviderType } from "../../lib/api/providers";
@@ -154,8 +156,7 @@ export const AppointmentBooking = ({
           </button>
         ) : (
           <Link
-            to="/signin"
-            search={{ mode: "login" }}
+            href={{ pathname: "/signin", query: { mode: "login" } }}
             className="w-full h-10 sm:h-11 bg-white hover:bg-white/95 text-primary rounded-lg text-[13px] sm:text-[14px] font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20"
           >
             Kyçu për të rezervuar

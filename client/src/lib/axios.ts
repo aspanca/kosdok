@@ -1,25 +1,30 @@
 import axios from "axios";
 import type { ApiError } from "./types";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 const ACCESS_TOKEN_KEY = "kosdok_access_token";
 const REFRESH_TOKEN_KEY = "kosdok_refresh_token";
 
+// localStorage is unavailable during server-side rendering
+const isBrowser = typeof window !== "undefined";
+
 export function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  return isBrowser ? localStorage.getItem(ACCESS_TOKEN_KEY) : null;
 }
 
 function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+  return isBrowser ? localStorage.getItem(REFRESH_TOKEN_KEY) : null;
 }
 
 export function setTokens(accessToken: string, refreshToken: string): void {
+  if (!isBrowser) return;
   localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 
 export function clearTokens(): void {
+  if (!isBrowser) return;
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
 }

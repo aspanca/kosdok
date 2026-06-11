@@ -1,3 +1,5 @@
+"use client";
+
 import { ReactComponent as PhoneIcon } from "./assets/phone-outgoing-alt-svgrepo-com.svg";
 import { ReactComponent as EnvelopeIcon } from "./assets/envelope-closed-svgrepo-com.svg";
 import { StatusBadge } from "../status-badge/status-badge";

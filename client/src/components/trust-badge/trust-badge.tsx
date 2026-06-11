@@ -1,3 +1,5 @@
+"use client";
+
 interface TrustBadgeProps {
   variant?: "default" | "compact" | "inline";
   className?: string;

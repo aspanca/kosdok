@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -15,7 +17,7 @@ import { useCities } from "../../lib/hooks/use-cities";
 
 export const SearchForm = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { data: services = [] } = useServices();
   const { data: cities = [] } = useCities();
   const [query, setQuery] = useState("");
@@ -24,14 +26,12 @@ export const SearchForm = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate({
-      to: "/results",
-      search: {
-        q: query || undefined,
-        serviceId: serviceId ? Number(serviceId) : undefined,
-        city: city || undefined,
-      },
-    });
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (serviceId) params.set("serviceId", String(Number(serviceId)));
+    if (city) params.set("city", city);
+    const qs = params.toString();
+    router.push(qs ? `/results?${qs}` : "/results");
   };
 
   return (

@@ -1,4 +1,6 @@
-import { Link } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
 
 export const ContactDisclaimer = () => {
   return (
@@ -9,7 +11,7 @@ export const ContactDisclaimer = () => {
           ardhurat e biznesit...
         </p>
         <Link
-          to="/contact"
+          href="/contact"
           className="px-6 py-2.5 bg-transparent border-2 border-white text-white rounded-full hover:bg-white hover:text-primary transition-all duration-200 font-medium whitespace-nowrap"
         >
           Na kontaktoni

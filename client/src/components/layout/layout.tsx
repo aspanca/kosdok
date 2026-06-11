@@ -1,5 +1,7 @@
+"use client";
+
 import React, { ReactNode, useEffect } from "react";
-import { useLocation } from "@tanstack/react-router";
+import { usePathname } from "next/navigation";
 import { AppBar } from "../app-bar/app-bar";
 import { Footer } from "../footer/footer";
 import { ContactDisclaimer } from "../contact-disclaimer/contact-disclaimer";
@@ -9,12 +11,12 @@ type LayoutProps = {
 };
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const location = useLocation();
+  const pathname = usePathname();
 
   // Scroll to top on route change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
-  }, [location.pathname]);
+  }, [pathname]);
 
   return (
     <div>

@@ -36,3 +36,5 @@ client/coverage/
 # Misc
 *.tgz
 client/.cache/
+.vercel
+.env*

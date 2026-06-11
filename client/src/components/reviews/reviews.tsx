@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../context/auth-context";
 import { getProviderReviews, createReview } from "../../lib/api/reviews";
@@ -127,7 +129,7 @@ export const Reviews = ({ entityType, entityId, entityName: _entityName }: Revie
             {showForm ? "Anulo" : "+ Shkruaj"}
           </button>
         ) : !isLoggedIn ? (
-          <Link to="/signin" search={{ mode: "login" }} className="h-8 px-4 inline-flex items-center bg-primary text-white text-[12px] font-[600] rounded-full hover:bg-primary/90 transition-colors">
+          <Link href={{ pathname: "/signin", query: { mode: "login" } }} className="h-8 px-4 inline-flex items-center bg-primary text-white text-[12px] font-[600] rounded-full hover:bg-primary/90 transition-colors">
             Kyçu
           </Link>
         ) : null}
@@ -175,7 +177,7 @@ export const Reviews = ({ entityType, entityId, entityName: _entityName }: Revie
           <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <Link to="/signin" search={{ mode: "login" }} className="text-primary font-[600] hover:underline">Kyçuni</Link> për të vlerësuar {label}.
+          <Link href={{ pathname: "/signin", query: { mode: "login" } }} className="text-primary font-[600] hover:underline">Kyçuni</Link> për të vlerësuar {label}.
         </div>
       )}
 

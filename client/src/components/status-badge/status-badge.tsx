@@ -1,3 +1,5 @@
+"use client";
+
 interface StatusBadgeProps {
   isOpen: boolean;
   variant?: "default" | "compact" | "dot";

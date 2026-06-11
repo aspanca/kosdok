@@ -1,3 +1,5 @@
+"use client";
+
 import BloodDropPng from "./assets/blood-drop.png";
 import BloodDropLeftPng from "./assets/blood-drop-left.png";
 import BloodDropRightPng from "./assets/blood-drop-right.png";

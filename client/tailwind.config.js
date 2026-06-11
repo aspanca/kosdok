@@ -1,11 +1,11 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   darkMode: ["class"],
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  content: ["./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Titillium Web"', "sans-serif"],
+        sans: ["var(--font-titillium)", '"Titillium Web"', "sans-serif"],
       },
       fontSize: {
         "xl-bold": [

@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 
 type Platform = "facebook" | "twitter" | "linkedin" | "google";

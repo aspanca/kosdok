@@ -1,4 +1,6 @@
-import { Link } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
 import { SearchForm } from "../search-form/search-form";
 import { TrustBadge } from "../trust-badge/trust-badge";
 import HomepagePng from "./assets/homepage.png";
@@ -30,7 +32,7 @@ export const Search = () => {
           {/* Advanced Search Link */}
           <div className="mt-4 flex items-center justify-center lg:justify-start gap-2">
             <Link
-              to="/advanced-search"
+              href="/advanced-search"
               className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary transition-colors group"
             >
               <svg

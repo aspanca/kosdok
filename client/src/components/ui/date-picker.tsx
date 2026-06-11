@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { DayPicker } from "react-day-picker";
 import { format, parse } from "date-fns";

@@ -1,3 +1,5 @@
+"use client";
+
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { getAccessToken, setTokens, clearTokens } from "../lib/axios";
 import * as authApi from "../lib/api/auth";
@@ -37,6 +39,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function getStoredUser(): User | null {
+  if (typeof window === "undefined") return null;
   try {
     const stored = localStorage.getItem(AUTH_STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
@@ -46,7 +49,9 @@ function getStoredUser(): User | null {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(getStoredUser);
+  // Start as null and restore from localStorage after mount so the server
+  // render and the client's first render match (avoids hydration errors).
+  const [user, setUser] = useState<User | null>(null);
 
   const persistUser = useCallback((u: User | null) => {
     setUser(u);
@@ -83,9 +88,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [persistUser, logout]);
 
   useEffect(() => {
-    if (user && getAccessToken()) {
-      fetchUser().catch(() => {});
+    const stored = getStoredUser();
+    if (stored) {
+      setUser(stored);
+      if (getAccessToken()) {
+        fetchUser().catch(() => {});
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const registerPatient = useCallback(

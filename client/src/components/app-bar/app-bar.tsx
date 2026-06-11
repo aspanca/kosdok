@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import Link from "next/link";
 import { ReactComponent as LogoSvg } from "./assets/logo.svg";
 import { useAuth, getUserDisplayName, getUserInitials, getUserPicture } from "../../context/auth-context";
 
@@ -20,7 +22,7 @@ export const AppBar = () => {
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex-shrink-0">
+          <Link href="/" className="flex-shrink-0">
             <LogoSvg className="h-7 md:h-8 w-auto" />
           </Link>
 
@@ -29,7 +31,7 @@ export const AppBar = () => {
             {navLinks.map((link) => (
               <Link
                 key={link.to}
-                to={link.to}
+                href={link.to}
                 className="px-4 py-2 text-[15px] font-medium text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200"
               >
                 {link.label}
@@ -72,7 +74,7 @@ export const AppBar = () => {
                         <p className="text-xs text-gray-500">{user?.email}</p>
                       </div>
                       <Link
-                        to={isClinic ? "/clinic-profile" : "/profile"}
+                        href={isClinic ? "/clinic-profile" : "/profile"}
                         onClick={() => setIsUserMenuOpen(false)}
                         className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                       >
@@ -85,7 +87,7 @@ export const AppBar = () => {
                       </Link>
                       {isClinic && (
                         <Link
-                          to="/clinic-dashboard/bookings"
+                          href="/clinic-dashboard/bookings"
                           onClick={() => setIsUserMenuOpen(false)}
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
@@ -100,7 +102,7 @@ export const AppBar = () => {
                       {!isClinic && (
                         <>
                           <Link
-                            to="/appointments"
+                            href="/appointments"
                             onClick={() => setIsUserMenuOpen(false)}
                             className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                           >
@@ -112,7 +114,7 @@ export const AppBar = () => {
                             </div>
                           </Link>
                           <Link
-                            to="/my-reviews"
+                            href="/my-reviews"
                             onClick={() => setIsUserMenuOpen(false)}
                             className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                           >
@@ -147,14 +149,13 @@ export const AppBar = () => {
               ) : (
                 <>
                   <Link
-                    to="/signin"
-                    search={{ mode: "login" }}
+                    href={{ pathname: "/signin", query: { mode: "login" } }}
                     className="px-4 py-2.5 text-[15px] font-semibold text-primary hover:bg-primary/5 rounded-full transition-all duration-200"
                   >
                     Kyçu
                   </Link>
                   <Link
-                    to="/signup"
+                    href="/signup"
                     className="px-5 py-2.5 text-[15px] font-semibold text-white bg-primary hover:bg-primary/90 rounded-full transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5"
                   >
                     Regjistrohu
@@ -201,7 +202,7 @@ export const AppBar = () => {
           {navLinks.map((link, index) => (
             <Link
               key={link.to}
-              to={link.to}
+              href={link.to}
               onClick={() => setIsMenuOpen(false)}
               className="block px-4 py-3 text-base font-medium text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all duration-200"
               style={{ animationDelay: `${index * 50}ms` }}
@@ -228,7 +229,7 @@ export const AppBar = () => {
                   </div>
                 </div>
                 <Link
-                  to={isClinic ? "/clinic-profile" : "/profile"}
+                  href={isClinic ? "/clinic-profile" : "/profile"}
                   onClick={() => setIsMenuOpen(false)}
                   className="block w-full py-3 px-4 text-left text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
                 >
@@ -236,7 +237,7 @@ export const AppBar = () => {
                 </Link>
                 {isClinic && (
                   <Link
-                    to="/clinic-dashboard/bookings"
+                    href="/clinic-dashboard/bookings"
                     onClick={() => setIsMenuOpen(false)}
                     className="block w-full py-3 px-4 text-left text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
                   >
@@ -246,14 +247,14 @@ export const AppBar = () => {
                 {!isClinic && (
                   <>
                     <Link
-                      to="/appointments"
+                      href="/appointments"
                       onClick={() => setIsMenuOpen(false)}
                       className="block w-full py-3 px-4 text-left text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
                     >
                       Takimet e mia
                     </Link>
                     <Link
-                      to="/my-reviews"
+                      href="/my-reviews"
                       onClick={() => setIsMenuOpen(false)}
                       className="block w-full py-3 px-4 text-left text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
                     >
@@ -274,15 +275,14 @@ export const AppBar = () => {
             ) : (
               <>
                 <Link
-                  to="/signin"
-                  search={{ mode: "login" }}
+                  href={{ pathname: "/signin", query: { mode: "login" } }}
                   onClick={() => setIsMenuOpen(false)}
                   className="block w-full py-3 text-center text-base font-semibold text-primary border-2 border-primary hover:bg-primary/5 rounded-xl transition-colors"
                 >
                   Kyçu
                 </Link>
                 <Link
-                  to="/signup"
+                  href="/signup"
                   onClick={() => setIsMenuOpen(false)}
                   className="block w-full py-3 text-center text-base font-semibold text-white bg-primary hover:bg-primary/90 rounded-xl transition-colors shadow-lg shadow-primary/25"
                 >

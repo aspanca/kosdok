@@ -1,4 +1,6 @@
-import { Link } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
 import { ReactComponent as LogoSvg } from "./assets/logo.svg";
 import { SocialShare } from "../social-share/social-share";
 
@@ -10,7 +12,7 @@ export const Footer = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12">
           {/* Logo & Description - Full width on mobile */}
           <div className="col-span-2 md:col-span-4 lg:col-span-2">
-            <Link to="/">
+            <Link href="/">
               <LogoSvg className="h-8 w-auto" />
             </Link>
             <p className="mt-4 text-sm sm:text-base text-gray-500 leading-relaxed max-w-md">
@@ -33,8 +35,7 @@ export const Footer = () => {
             <ul className="space-y-2.5">
               <li>
                 <Link
-                  to="/results"
-                  search={{ type: "clinic" }}
+                  href={{ pathname: "/results", query: { type: "clinic" } }}
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Spitalet
@@ -42,7 +43,7 @@ export const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/results"
+                  href="/results"
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Klinikat
@@ -50,8 +51,7 @@ export const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/results"
-                  search={{ type: "doctor" }}
+                  href={{ pathname: "/results", query: { type: "doctor" } }}
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Doktoret
@@ -59,7 +59,7 @@ export const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/results"
+                  href="/results"
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Barnatoret
@@ -76,7 +76,7 @@ export const Footer = () => {
             <ul className="space-y-2.5">
               <li>
                 <Link
-                  to="/"
+                  href="/"
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Kerko Biznese
@@ -84,7 +84,7 @@ export const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/donate-blood"
+                  href="/donate-blood"
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Dhuro Gjak
@@ -92,7 +92,7 @@ export const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/blog"
+                  href="/blog"
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Blog
@@ -100,7 +100,7 @@ export const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/contact"
+                  href="/contact"
                   className="text-sm sm:text-base text-gray-500 hover:text-primary transition-colors"
                 >
                   Kontakti
@@ -159,14 +159,14 @@ export const Footer = () => {
             </p>
             <div className="flex items-center gap-4">
               <Link
-                to="/privacy-policy"
+                href="/privacy-policy"
                 className="hover:text-primary transition-colors"
               >
                 Termet dhe kushtet
               </Link>
               <span className="text-gray-300">|</span>
               <Link
-                to="/privacy-policy"
+                href="/privacy-policy"
                 className="hover:text-primary transition-colors"
               >
                 Politika e Privatesise
